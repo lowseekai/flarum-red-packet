@@ -1,0 +1,15 @@
+doingfb-red-packet:
+  admin:
+    settings:
+      enabled: Enable red packets
+      min_amount: Minimum red packet total amount
+      min_amount_help: Minimum total amount when creating a red packet.
+      max_amount: Maximum red packet total amount
+      max_amount_help: Maximum total amount when creating a red packet.
+      max_count: Maximum red packet count
+      max_count_help: Maximum number of users who can claim a red packet.
+      expires_minutes: Expiration minutes
+      expires_minutes_help: Unclaimed money is refunded to the sender by the scheduled task after expiration.
+    permissions:
+      create: Send red packets
+      claim: Claim red packets

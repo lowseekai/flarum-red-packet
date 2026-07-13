@@ -1,0 +1,4 @@
+/vendor/
+/js/node_modules/
+/js/npm-debug.log*
+/.idea/

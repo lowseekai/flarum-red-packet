@@ -1,0 +1,15 @@
+doingfb-red-packet:
+  admin:
+    settings:
+      enabled: 启用红包
+      min_amount: 单个红包最低总金额
+      min_amount_help: 发红包时的最小总金额。
+      max_amount: 单个红包最高总金额
+      max_amount_help: 发红包时的最大总金额。
+      max_count: 单个红包最大个数
+      max_count_help: 一个红包最多可被多少人领取。
+      expires_minutes: 红包过期分钟数
+      expires_minutes_help: 过期后未领取金额会通过定时任务退回发送者。
+    permissions:
+      create: 发送红包
+      claim: 领取红包
