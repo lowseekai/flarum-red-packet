@@ -38,6 +38,7 @@ class RedPacketSerializer extends AbstractSerializer
                 && $packet->status() === 'open',
             'expiresAt' => $this->formatDate($packet->expires_at),
             'refundedAt' => $this->formatDate($packet->refunded_at),
+            'publishedAt' => $this->formatDate($packet->published_at),
             'createdAt' => $this->formatDate($packet->created_at),
             'updatedAt' => $this->formatDate($packet->updated_at),
         ];

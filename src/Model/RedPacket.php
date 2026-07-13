@@ -18,6 +18,7 @@ class RedPacket extends AbstractModel
         'claimed_count' => 'integer',
         'expires_at' => 'datetime',
         'refunded_at' => 'datetime',
+        'published_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -51,6 +52,10 @@ class RedPacket extends AbstractModel
     {
         if ($this->refunded_at !== null) {
             return 'refunded';
+        }
+
+        if ($this->published_at === null) {
+            return 'pending';
         }
 
         if ($this->isFullyClaimed()) {

@@ -21,7 +21,9 @@ class RefundExpiredRedPacketsCommand extends AbstractCommand
 
     protected function fire(): void
     {
-        $count = $this->repository->refundExpired();
-        $this->info(sprintf('Refunded %d expired red packet(s).', $count));
+        $expired = $this->repository->refundExpired();
+        $unpublished = $this->repository->refundStaleUnpublished();
+
+        $this->info(sprintf('Refunded %d expired red packet(s), %d unpublished red packet(s).', $expired, $unpublished));
     }
 }

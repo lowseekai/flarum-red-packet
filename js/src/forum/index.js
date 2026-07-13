@@ -1,5 +1,5 @@
 import app from 'flarum/forum/app';
-import { extend } from 'flarum/common/extend';
+import { extend, override } from 'flarum/common/extend';
 import Component from 'flarum/common/Component';
 import Model from 'flarum/common/Model';
 import Button from 'flarum/common/components/Button';
@@ -8,6 +8,8 @@ import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import TextEditor from 'flarum/common/components/TextEditor';
 import TextEditorButton from 'flarum/common/components/TextEditorButton';
 import CommentPost from 'flarum/forum/components/CommentPost';
+import Composer from 'flarum/forum/components/Composer';
+import ComposerState from 'flarum/forum/states/ComposerState';
 import avatar from 'flarum/common/helpers/avatar';
 import username from 'flarum/common/helpers/username';
 import humanTime from 'flarum/common/helpers/humanTime';
@@ -27,6 +29,7 @@ Object.assign(RedPacket.prototype, {
   actorClaimAmount: Model.attribute('actorClaimAmount'),
   canClaim: Model.attribute('canClaim'),
   expiresAt: Model.attribute('expiresAt', Model.transformDate),
+  publishedAt: Model.attribute('publishedAt', Model.transformDate),
   createdAt: Model.attribute('createdAt', Model.transformDate),
   user: Model.hasOne('user'),
 });
@@ -69,6 +72,67 @@ function formatMoney(amount) {
 
 function redPacketEnabled() {
   return !!(app.forum && app.forum.attribute('doingfb-red-packet.enabled'));
+}
+
+function rememberPendingRedPacket(composer, packetId) {
+  if (!composer || !packetId) return;
+
+  composer.doingfbRedPacketPendingIds = composer.doingfbRedPacketPendingIds || [];
+
+  if (!composer.doingfbRedPacketPendingIds.includes(String(packetId))) {
+    composer.doingfbRedPacketPendingIds.push(String(packetId));
+  }
+}
+
+function syncPendingRedPacketsWithContent(composer, content) {
+  if (!composer || !composer.doingfbRedPacketPendingIds) return;
+
+  const activeIds = redPacketIdsFromText(content).map(String);
+  const removedIds = composer.doingfbRedPacketPendingIds.filter((id) => !activeIds.includes(String(id)));
+
+  if (!removedIds.length) return;
+
+  composer.doingfbRedPacketPendingIds = composer.doingfbRedPacketPendingIds.filter((id) => activeIds.includes(String(id)));
+  cancelPendingRedPackets(removedIds);
+}
+
+function cancelPendingRedPackets(packetIds) {
+  const ids = [...new Set((packetIds || []).filter(Boolean).map(String))];
+
+  if (!ids.length) return;
+
+  Promise.allSettled(ids.map((id) => app.request({
+    method: 'DELETE',
+    url: apiUrl(`/doingfb-red-packets/${id}`),
+  }))).then(() => {
+    if (app.session.user) {
+      app.store.find('users', app.session.user.id()).catch(() => {});
+    }
+  });
+}
+
+function composerPreview(ids) {
+  return (
+    <div className="DoingfbRedPacketComposerPreview">
+      <div className="DoingfbRedPacketComposerPreview-heading">
+        <i className="fas fa-gift" />
+        <span>红包预览</span>
+      </div>
+      {ids.map((id) => (
+        <div className="DoingfbRedPacketCard is-pending is-composerPreview" key={id}>
+          <div className="DoingfbRedPacketCard-icon"><i className="fas fa-gift" /></div>
+          <div className="DoingfbRedPacketCard-main">
+            <strong>红包卡片</strong>
+            <p>红包 #{id}，发布帖子后可领取。</p>
+            <em>待发布</em>
+          </div>
+          <div className="DoingfbRedPacketCard-action">
+            <Button className="Button Button--primary" disabled>预览</Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 class CreateRedPacketModal extends Modal {
@@ -170,6 +234,8 @@ class CreateRedPacketModal extends Modal {
       const packet = app.store.pushPayload(payload);
       const marker = `\n[redpacket id=${packet.id()}]\n`;
 
+      rememberPendingRedPacket(this.attrs.composer, packet.id());
+
       if (this.attrs.editor && this.attrs.editor.insertAtCursor) {
         this.attrs.editor.insertAtCursor(marker);
       }
@@ -254,6 +320,7 @@ class RedPacketCard extends Component {
 
   statusText(status) {
     const map = {
+      pending: '待发布',
       claimed: '红包已领完',
       expired: '红包已过期',
       refunded: '红包已退款',
@@ -264,6 +331,7 @@ class RedPacketCard extends Component {
 
   statusButtonText(status) {
     const map = {
+      pending: '待发布',
       claimed: '已领完',
       expired: '已过期',
       refunded: '已退款',
@@ -389,10 +457,30 @@ function bootMarkerScanner() {
 app.initializers.add('doingfb-red-packet', () => {
   app.store.models['doingfb-red-packets'] = RedPacket;
 
+  override(ComposerState.prototype, 'clear', function (original) {
+    const pendingIds = this.doingfbRedPacketPendingIds || [];
+
+    this.doingfbRedPacketPendingIds = [];
+    original();
+    cancelPendingRedPackets(pendingIds);
+  });
+
+  extend(Composer.prototype, 'updateHeight', function () {
+    const $preview = this.$('.DoingfbRedPacketComposerPreview');
+    const $flexible = this.$('.Composer-flexible');
+
+    if (!$preview.length || !$flexible.length) return;
+
+    $flexible.height(Math.max(120, $flexible.height() - $preview.outerHeight(true)));
+  });
+
   extend(TextEditor.prototype, 'view', function (vnode) {
-    const ids = redPacketIdsFromText(this.value);
+    const ids = redPacketIdsFromText(this.attrs.value || this.value);
 
     if (!ids.length || !vnode.children) return;
+
+    vnode.children.splice(1, 0, composerPreview(ids));
+    return;
 
     vnode.children.splice(1, 0, (
       <div className="DoingfbRedPacketComposerPreview">
@@ -411,6 +499,8 @@ app.initializers.add('doingfb-red-packet', () => {
     params.inputListeners.push(() => {
       const nextPreviewIds = redPacketIdsFromText(this.value).join(',');
 
+      syncPendingRedPacketsWithContent(this.attrs.composer, this.value);
+
       if (nextPreviewIds !== lastPreviewIds) {
         lastPreviewIds = nextPreviewIds;
         m.redraw();
@@ -425,7 +515,10 @@ app.initializers.add('doingfb-red-packet', () => {
       <TextEditorButton
         icon="fas fa-gift"
         title="发红包"
-        onclick={() => app.modal.show(CreateRedPacketModal, { editor: this.attrs.composer && this.attrs.composer.editor })}
+        onclick={() => app.modal.show(CreateRedPacketModal, {
+          composer: this.attrs.composer,
+          editor: this.attrs.composer && this.attrs.composer.editor,
+        })}
       />
     ));
   });

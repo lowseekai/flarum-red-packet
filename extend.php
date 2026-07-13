@@ -3,14 +3,18 @@
 namespace Doingfb\RedPacket;
 
 use Doingfb\RedPacket\Api\Controller\ClaimRedPacketController;
+use Doingfb\RedPacket\Api\Controller\CancelRedPacketController;
 use Doingfb\RedPacket\Api\Controller\CreateRedPacketController;
 use Doingfb\RedPacket\Api\Controller\ShowRedPacketController;
 use Doingfb\RedPacket\Console\RefundExpiredRedPacketsCommand;
 use Doingfb\RedPacket\Formatter\ConfigureRedPacketFormatter;
+use Doingfb\RedPacket\Listener\PublishRedPacketsInPost;
 use Doingfb\RedPacket\Model\RedPacket;
 use Doingfb\RedPacket\Support\RedPacketSettings;
 use Flarum\Api\Serializer\ForumSerializer;
 use Flarum\Extend;
+use Flarum\Post\Event\Posted;
+use Flarum\Post\Event\Revised;
 use Illuminate\Console\Scheduling\Event;
 
 return [
@@ -35,7 +39,12 @@ return [
     (new Extend\Routes('api'))
         ->get('/doingfb-red-packets/{id}', 'doingfb.red-packets.show', ShowRedPacketController::class)
         ->post('/doingfb-red-packets', 'doingfb.red-packets.create', CreateRedPacketController::class)
+        ->delete('/doingfb-red-packets/{id}', 'doingfb.red-packets.cancel', CancelRedPacketController::class)
         ->post('/doingfb-red-packets/{id}/claim', 'doingfb.red-packets.claim', ClaimRedPacketController::class),
+
+    (new Extend\Event())
+        ->listen(Posted::class, PublishRedPacketsInPost::class)
+        ->listen(Revised::class, PublishRedPacketsInPost::class),
 
     (new Extend\Model(RedPacket::class))
         ->relationship('claims', function (RedPacket $packet) {

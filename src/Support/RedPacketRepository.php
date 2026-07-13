@@ -73,6 +73,8 @@ class RedPacketRepository
             $lockedActor->save();
             $updatedActor = $lockedActor;
 
+            $now = Carbon::now();
+
             $packet = new RedPacket();
             $packet->user_id = (int) $lockedActor->id;
             $packet->total_amount = $totalAmount;
@@ -81,7 +83,10 @@ class RedPacketRepository
             $packet->claimed_count = 0;
             $packet->distribution = 'average';
             $packet->greeting = $greeting !== '' ? $greeting : '恭喜发财，大吉大利';
-            $packet->expires_at = Carbon::now()->addMinutes($this->settings->expiresMinutes());
+            $packet->expires_at = $now->copy()->addMinutes($this->settings->expiresMinutes());
+            $packet->published_at = null;
+            $packet->created_at = $now;
+            $packet->updated_at = $now;
             $packet->save();
 
             return $packet;
@@ -112,6 +117,10 @@ class RedPacketRepository
 
             if ($packet->refunded_at !== null) {
                 throw new ValidationException(['redPacket' => '红包已退款。']);
+            }
+
+            if ($packet->published_at === null) {
+                throw new ValidationException(['redPacket' => '红包尚未发布。']);
             }
 
             if ($packet->isExpired()) {
@@ -165,6 +174,55 @@ class RedPacketRepository
         return $this->findOrFail((int) $packet->id);
     }
 
+    public function cancelUnpublished(User $actor, int $packetId): void
+    {
+        $actor->assertRegistered();
+
+        $updatedSender = null;
+
+        $this->db->transaction(function () use ($actor, $packetId, &$updatedSender) {
+            /** @var RedPacket|null $packet */
+            $packet = RedPacket::query()->whereKey($packetId)->lockForUpdate()->first();
+
+            if (!$packet || $packet->refunded_at !== null || $packet->published_at !== null) {
+                return;
+            }
+
+            if ((int) $packet->user_id !== (int) $actor->id) {
+                throw new PermissionDeniedException();
+            }
+
+            $updatedSender = $this->refundLocked($packet);
+        });
+
+        if ($updatedSender) {
+            $this->events->dispatch(new MoneyUpdated($updatedSender));
+        }
+    }
+
+    public function publishFromContent(string $content, int $userId): void
+    {
+        if (!preg_match_all('/\[redpacket\s+id=(\d+)\]|\[\[doingfb-red-packet:(\d+)\]\]/i', $content, $matches)) {
+            return;
+        }
+
+        $ids = array_values(array_unique(array_filter(array_merge($matches[1], $matches[2]))));
+
+        if (!$ids) {
+            return;
+        }
+
+        RedPacket::query()
+            ->whereIn('id', $ids)
+            ->where('user_id', $userId)
+            ->whereNull('published_at')
+            ->whereNull('refunded_at')
+            ->update([
+                'published_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+    }
+
     public function refundExpired(int $limit = 100): int
     {
         $ids = RedPacket::query()
@@ -200,6 +258,45 @@ class RedPacketRepository
         return $count;
     }
 
+    public function refundStaleUnpublished(int $minutes = 60, int $limit = 100): int
+    {
+        $ids = RedPacket::query()
+            ->whereNull('published_at')
+            ->whereNull('refunded_at')
+            ->where(function ($query) use ($minutes) {
+                $query
+                    ->whereNull('created_at')
+                    ->orWhere('created_at', '<=', Carbon::now()->subMinutes($minutes));
+            })
+            ->limit($limit)
+            ->pluck('id')
+            ->all();
+
+        $count = 0;
+
+        foreach ($ids as $id) {
+            $updatedSender = null;
+
+            $this->db->transaction(function () use ($id, &$updatedSender) {
+                /** @var RedPacket|null $packet */
+                $packet = RedPacket::query()->whereKey($id)->lockForUpdate()->first();
+
+                if (!$packet || $packet->refunded_at !== null || $packet->published_at !== null) {
+                    return;
+                }
+
+                $updatedSender = $this->refundLocked($packet);
+            });
+
+            if ($updatedSender) {
+                $count++;
+                $this->events->dispatch(new MoneyUpdated($updatedSender));
+            }
+        }
+
+        return $count;
+    }
+
     private function nextClaimAmount(RedPacket $packet): float
     {
         $remainingCount = max(1, (int) $packet->total_count - (int) $packet->claimed_count);
@@ -216,6 +313,7 @@ class RedPacketRepository
     {
         $remaining = $packet->remainingAmount();
         $packet->refunded_at = Carbon::now();
+        $packet->updated_at = Carbon::now();
         $packet->save();
 
         if ($remaining <= 0) {
