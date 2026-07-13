@@ -301,10 +301,12 @@ function replaceMarkersInElement(element) {
         fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
       }
 
+      const packetId = match[1] || match[2];
       const mount = document.createElement('span');
       mount.className = 'DoingfbRedPacketMount';
+      mount.dataset.redPacketId = packetId;
       fragment.appendChild(mount);
-      m.mount(mount, { view: () => <RedPacketCard id={match[1] || match[2]} /> });
+      mountRedPacketElement(mount);
       lastIndex = markerPattern.lastIndex;
     }
 
@@ -316,6 +318,16 @@ function replaceMarkersInElement(element) {
   });
 }
 
+function mountRedPacketElement(element) {
+  if (!element || element.dataset.doingfbRedPacketMounted === '1') return;
+
+  const packetId = element.dataset.redPacketId;
+  if (!packetId) return;
+
+  element.dataset.doingfbRedPacketMounted = '1';
+  m.mount(element, { view: () => <RedPacketCard id={packetId} /> });
+}
+
 function scanRedPacketMarkers(root = document) {
   if (!redPacketEnabled()) return;
 
@@ -323,7 +335,12 @@ function scanRedPacketMarkers(root = document) {
     replaceMarkersInElement(root);
   }
 
+  if (root.matches && root.matches('.DoingfbRedPacketMount[data-red-packet-id]')) {
+    mountRedPacketElement(root);
+  }
+
   root.querySelectorAll('.Post-body, .Post-preview, .DoingfbChatMessage-text').forEach(replaceMarkersInElement);
+  root.querySelectorAll('.DoingfbRedPacketMount[data-red-packet-id]').forEach(mountRedPacketElement);
 }
 
 let observer = null;

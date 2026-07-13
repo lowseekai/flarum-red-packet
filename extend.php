@@ -6,6 +6,7 @@ use Doingfb\RedPacket\Api\Controller\ClaimRedPacketController;
 use Doingfb\RedPacket\Api\Controller\CreateRedPacketController;
 use Doingfb\RedPacket\Api\Controller\ShowRedPacketController;
 use Doingfb\RedPacket\Console\RefundExpiredRedPacketsCommand;
+use Doingfb\RedPacket\Formatter\ConfigureRedPacketFormatter;
 use Doingfb\RedPacket\Model\RedPacket;
 use Doingfb\RedPacket\Support\RedPacketSettings;
 use Flarum\Api\Serializer\ForumSerializer;
@@ -21,6 +22,9 @@ return [
         ->js(__DIR__.'/js/dist/admin.js'),
 
     new Extend\Locales(__DIR__.'/locale'),
+
+    (new Extend\Formatter())
+        ->configure(ConfigureRedPacketFormatter::class),
 
     (new Extend\Console())
         ->command(RefundExpiredRedPacketsCommand::class)
