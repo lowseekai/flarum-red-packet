@@ -33,6 +33,27 @@ Object.assign(RedPacket.prototype, {
 
 const markerPattern = /\[redpacket\s+id=(\d+)\]|\[\[doingfb-red-packet:(\d+)\]\]/g;
 
+function redPacketIdsFromText(text) {
+  const ids = [];
+  const seen = {};
+  let match;
+
+  markerPattern.lastIndex = 0;
+
+  while ((match = markerPattern.exec(text || '')) !== null) {
+    const id = match[1] || match[2];
+
+    if (id && !seen[id]) {
+      seen[id] = true;
+      ids.push(id);
+    }
+  }
+
+  markerPattern.lastIndex = 0;
+
+  return ids;
+}
+
 function apiUrl(path) {
   return `${String(app.forum.attribute('apiUrl') || '/api').replace(/\/$/, '')}${path}`;
 }
@@ -153,6 +174,7 @@ class CreateRedPacketModal extends Modal {
         this.attrs.editor.insertAtCursor(marker);
       }
 
+      m.redraw();
       this.hide();
       app.alerts.show({ type: 'success' }, '红包已创建并插入。');
     }).catch(() => {
@@ -220,10 +242,10 @@ class RedPacketCard extends Component {
           <Button
             className="Button Button--primary"
             loading={this.claiming}
-            disabled={!canClaim || this.claiming}
+            disabled={this.attrs.composerPreview || !canClaim || this.claiming}
             onclick={() => this.claim()}
           >
-            {claimed ? '已领取' : status === 'open' ? '领取' : this.statusButtonText(status)}
+            {this.attrs.composerPreview ? '预览' : claimed ? '已领取' : status === 'open' ? '领取' : this.statusButtonText(status)}
           </Button>
         </div>
       </div>
@@ -366,6 +388,35 @@ function bootMarkerScanner() {
 
 app.initializers.add('doingfb-red-packet', () => {
   app.store.models['doingfb-red-packets'] = RedPacket;
+
+  extend(TextEditor.prototype, 'view', function (vnode) {
+    const ids = redPacketIdsFromText(this.value);
+
+    if (!ids.length || !vnode.children) return;
+
+    vnode.children.splice(1, 0, (
+      <div className="DoingfbRedPacketComposerPreview">
+        <div className="DoingfbRedPacketComposerPreview-heading">
+          <i className="fas fa-gift" />
+          <span>红包预览</span>
+        </div>
+        {ids.map((id) => <RedPacketCard key={id} id={id} composerPreview />)}
+      </div>
+    ));
+  });
+
+  extend(TextEditor.prototype, 'buildEditorParams', function (params) {
+    let lastPreviewIds = redPacketIdsFromText(this.value).join(',');
+
+    params.inputListeners.push(() => {
+      const nextPreviewIds = redPacketIdsFromText(this.value).join(',');
+
+      if (nextPreviewIds !== lastPreviewIds) {
+        lastPreviewIds = nextPreviewIds;
+        m.redraw();
+      }
+    });
+  });
 
   extend(TextEditor.prototype, 'toolbarItems', function (items) {
     if (!redPacketEnabled() || !app.forum.attribute('doingfb-red-packet.canCreate')) return;
