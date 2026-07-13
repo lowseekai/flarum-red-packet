@@ -47,7 +47,7 @@ function formatMoney(amount) {
 }
 
 function redPacketEnabled() {
-  return !!app.forum.attribute('doingfb-red-packet.enabled');
+  return !!(app.forum && app.forum.attribute('doingfb-red-packet.enabled'));
 }
 
 class CreateRedPacketModal extends Modal {
@@ -329,6 +329,8 @@ function scanRedPacketMarkers(root = document) {
 let observer = null;
 
 function bootMarkerScanner() {
+  if (!app.forum) return;
+
   scanRedPacketMarkers();
 
   if (!observer && document.body) {
@@ -368,9 +370,7 @@ app.initializers.add('doingfb-red-packet', () => {
     scanRedPacketMarkers(this.element);
   });
 
-  if (document.body) {
-    bootMarkerScanner();
-  } else {
-    document.addEventListener('DOMContentLoaded', bootMarkerScanner, { once: true });
-  }
+  // Flarum runs initializers before app.forum is assigned, so defer DOM scanning
+  // until after the forum payload has been pushed and the app has mounted.
+  setTimeout(bootMarkerScanner, 0);
 });
