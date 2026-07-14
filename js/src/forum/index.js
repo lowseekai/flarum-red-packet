@@ -402,6 +402,12 @@ function mountRedPacketElement(element) {
   const packetId = element.dataset.redPacketId;
   if (!packetId) return;
 
+  if (element.closest && element.closest('.Post-preview')) {
+    element.dataset.doingfbRedPacketMounted = 'preview';
+    element.textContent = `[redpacket id=${packetId}]`;
+    return;
+  }
+
   element.dataset.doingfbRedPacketMounted = '1';
   m.mount(element, { view: () => <RedPacketCard id={packetId} /> });
 }
