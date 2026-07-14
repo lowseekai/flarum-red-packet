@@ -396,13 +396,17 @@ function replaceMarkersInElement(element) {
   });
 }
 
+function isComposerPreviewElement(element) {
+  return !!(element && element.closest && element.closest('.ComposerBody-editor, .Post-preview'));
+}
+
 function mountRedPacketElement(element) {
   if (!element || element.dataset.doingfbRedPacketMounted === '1') return;
 
   const packetId = element.dataset.redPacketId;
   if (!packetId) return;
 
-  if (element.closest && element.closest('.Post-preview')) {
+  if (isComposerPreviewElement(element)) {
     element.dataset.doingfbRedPacketMounted = 'preview';
     element.textContent = `[redpacket id=${packetId}]`;
     return;
@@ -415,7 +419,7 @@ function mountRedPacketElement(element) {
 function scanRedPacketMarkers(root = document) {
   if (!redPacketEnabled()) return;
 
-  if (root.matches && root.matches('.Post-body, .DoingfbChatMessage-text')) {
+  if (root.matches && root.matches('.Post-body, .DoingfbChatMessage-text') && !isComposerPreviewElement(root)) {
     replaceMarkersInElement(root);
   }
 
@@ -423,7 +427,9 @@ function scanRedPacketMarkers(root = document) {
     mountRedPacketElement(root);
   }
 
-  root.querySelectorAll('.Post-body, .DoingfbChatMessage-text').forEach(replaceMarkersInElement);
+  root.querySelectorAll('.Post-body, .DoingfbChatMessage-text').forEach((element) => {
+    if (!isComposerPreviewElement(element)) replaceMarkersInElement(element);
+  });
   root.querySelectorAll('.DoingfbRedPacketMount[data-red-packet-id]').forEach(mountRedPacketElement);
 }
 
