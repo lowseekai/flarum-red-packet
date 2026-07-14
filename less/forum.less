@@ -79,9 +79,10 @@
 .DoingfbRedPacketCard-meta {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   font-size: 13px;
   gap: 6px;
-  justify-content: flex-start;
+  justify-content: center;
   left: 20px;
   line-height: 1.25;
   max-width: calc(100% - 40px);
@@ -89,7 +90,7 @@
   opacity: 0.92;
   position: absolute;
   right: 20px;
-  text-align: left;
+  text-align: center;
   top: 26px;
 }
 
@@ -101,7 +102,8 @@
 }
 
 .DoingfbRedPacketCard-meta > span {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  max-width: 190px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -109,7 +111,7 @@
 }
 
 .DoingfbRedPacketCard-meta time {
-  flex: 0 0 auto;
+  flex: 0 0 100%;
   font-size: 11px;
   opacity: 0.68;
   white-space: nowrap;
@@ -168,10 +170,11 @@
 }
 
 .DoingfbRedPacketCard-action {
-  left: 0;
+  left: 50%;
   margin-top: 0;
   position: absolute;
   top: 282px;
+  transform: translateX(-50%);
   z-index: 2;
 }
 
@@ -226,7 +229,7 @@
   min-height: 64px;
   position: absolute;
   right: 20px;
-  text-align: left;
+  text-align: center;
   z-index: 1;
 }
 
