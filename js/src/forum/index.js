@@ -396,7 +396,7 @@ function mountRedPacketElement(element) {
 function scanRedPacketMarkers(root = document) {
   if (!redPacketEnabled()) return;
 
-  if (root.matches && root.matches('.Post-body, .Post-preview, .DoingfbChatMessage-text')) {
+  if (root.matches && root.matches('.Post-body, .DoingfbChatMessage-text')) {
     replaceMarkersInElement(root);
   }
 
@@ -404,7 +404,7 @@ function scanRedPacketMarkers(root = document) {
     mountRedPacketElement(root);
   }
 
-  root.querySelectorAll('.Post-body, .Post-preview, .DoingfbChatMessage-text').forEach(replaceMarkersInElement);
+  root.querySelectorAll('.Post-body, .DoingfbChatMessage-text').forEach(replaceMarkersInElement);
   root.querySelectorAll('.DoingfbRedPacketMount[data-red-packet-id]').forEach(mountRedPacketElement);
 }
 
