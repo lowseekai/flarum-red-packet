@@ -8,7 +8,6 @@ import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import TextEditor from 'flarum/common/components/TextEditor';
 import TextEditorButton from 'flarum/common/components/TextEditorButton';
 import CommentPost from 'flarum/forum/components/CommentPost';
-import Composer from 'flarum/forum/components/Composer';
 import ComposerState from 'flarum/forum/states/ComposerState';
 import avatar from 'flarum/common/helpers/avatar';
 import username from 'flarum/common/helpers/username';
@@ -109,30 +108,6 @@ function cancelPendingRedPackets(packetIds) {
       app.store.find('users', app.session.user.id()).catch(() => {});
     }
   });
-}
-
-function composerPreview(ids) {
-  return (
-    <div className="DoingfbRedPacketComposerPreview">
-      <div className="DoingfbRedPacketComposerPreview-heading">
-        <i className="fas fa-gift" />
-        <span>红包预览</span>
-      </div>
-      {ids.map((id) => (
-        <div className="DoingfbRedPacketCard is-pending is-composerPreview" key={id}>
-          <div className="DoingfbRedPacketCard-icon"><i className="fas fa-gift" /></div>
-          <div className="DoingfbRedPacketCard-main">
-            <strong>红包卡片</strong>
-            <p>红包 #{id}，发布帖子后可领取。</p>
-            <em>待发布</em>
-          </div>
-          <div className="DoingfbRedPacketCard-action">
-            <Button className="Button Button--primary" disabled>预览</Button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 class CreateRedPacketModal extends Modal {
@@ -308,10 +283,10 @@ class RedPacketCard extends Component {
           <Button
             className="Button Button--primary"
             loading={this.claiming}
-            disabled={this.attrs.composerPreview || !canClaim || this.claiming}
+            disabled={!canClaim || this.claiming}
             onclick={() => this.claim()}
           >
-            {this.attrs.composerPreview ? '预览' : claimed ? '已领取' : status === 'open' ? '领取' : this.statusButtonText(status)}
+            {claimed ? '已领取' : status === 'open' ? '领取' : this.statusButtonText(status)}
           </Button>
         </div>
       </div>
@@ -463,34 +438,6 @@ app.initializers.add('doingfb-red-packet', () => {
     this.doingfbRedPacketPendingIds = [];
     original();
     cancelPendingRedPackets(pendingIds);
-  });
-
-  extend(Composer.prototype, 'updateHeight', function () {
-    const $preview = this.$('.DoingfbRedPacketComposerPreview');
-    const $flexible = this.$('.Composer-flexible');
-
-    if (!$preview.length || !$flexible.length) return;
-
-    $flexible.height(Math.max(120, $flexible.height() - $preview.outerHeight(true)));
-  });
-
-  extend(TextEditor.prototype, 'view', function (vnode) {
-    const ids = redPacketIdsFromText(this.attrs.value || this.value);
-
-    if (!ids.length || !vnode.children) return;
-
-    vnode.children.splice(1, 0, composerPreview(ids));
-    return;
-
-    vnode.children.splice(1, 0, (
-      <div className="DoingfbRedPacketComposerPreview">
-        <div className="DoingfbRedPacketComposerPreview-heading">
-          <i className="fas fa-gift" />
-          <span>红包预览</span>
-        </div>
-        {ids.map((id) => <RedPacketCard key={id} id={id} composerPreview />)}
-      </div>
-    ));
   });
 
   extend(TextEditor.prototype, 'buildEditorParams', function (params) {
