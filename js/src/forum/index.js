@@ -262,32 +262,45 @@ class RedPacketCard extends Component {
     const status = this.packet.status();
     const claimed = this.packet.claimedByActor();
     const canClaim = this.packet.canClaim();
+    const actionText = claimed ? '已领' : status === 'open' ? '开' : this.statusButtonText(status);
 
     return (
       <div className={`DoingfbRedPacketCard is-${status}`}>
-        <div className="DoingfbRedPacketCard-icon"><i className="fas fa-gift" /></div>
-        <div className="DoingfbRedPacketCard-main">
+        <div className="DoingfbRedPacketCard-cover">
           <div className="DoingfbRedPacketCard-meta">
             {user ? avatar(user) : null}
             <span>{user ? username(user) : '用户'} 的红包</span>
             {this.packet.createdAt() ? <time>{humanTime(this.packet.createdAt())}</time> : null}
           </div>
-          <strong>{this.packet.greeting() || '恭喜发财，大吉大利'}</strong>
-          <p>
-            已领 {this.packet.claimedCount()} / {this.packet.totalCount()} 个，
-            共 {formatMoney(this.packet.totalAmount())}
-          </p>
-          {claimed ? <em>你已领取 {formatMoney(this.packet.actorClaimAmount())}</em> : this.statusText(status)}
-        </div>
-        <div className="DoingfbRedPacketCard-action">
-          <Button
-            className="Button Button--primary"
-            loading={this.claiming}
-            disabled={!canClaim || this.claiming}
-            onclick={() => this.claim()}
-          >
-            {claimed ? '已领取' : status === 'open' ? '领取' : this.statusButtonText(status)}
-          </Button>
+
+          <strong className="DoingfbRedPacketCard-greeting">
+            {this.packet.greeting() || '恭喜发财，大吉大利'}
+          </strong>
+
+          <div className="DoingfbRedPacketCard-art" aria-hidden="true">
+            <i className="fas fa-gift" />
+            <span>红包</span>
+          </div>
+
+          <div className="DoingfbRedPacketCard-action">
+            <Button
+              className="Button DoingfbRedPacketCard-openButton"
+              loading={this.claiming}
+              disabled={!canClaim || this.claiming}
+              onclick={() => this.claim()}
+            >
+              {actionText}
+            </Button>
+          </div>
+
+          <div className="DoingfbRedPacketCard-footer">
+            <strong>幸运红包</strong>
+            <p>
+              已领 {this.packet.claimedCount()} / {this.packet.totalCount()} 个，
+              共 {formatMoney(this.packet.totalAmount())}
+            </p>
+            {claimed ? <em>你已领取 {formatMoney(this.packet.actorClaimAmount())}</em> : this.statusText(status)}
+          </div>
         </div>
       </div>
     );
