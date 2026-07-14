@@ -232,6 +232,101 @@
   margin-top: 6px;
 }
 
+.DoingfbRedPacketTypeControl {
+  background: var(--control-bg);
+  border-radius: 6px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+}
+
+.DoingfbRedPacketTypeControl .Button {
+  border-radius: 4px;
+  font-weight: 600;
+  margin: 0;
+  width: 100%;
+}
+
+.DoingfbRedPacketTypeControl .Button.active {
+  background: #d9232e;
+  color: #fff7dc;
+}
+
+.DoingfbRedPacketClaimResult {
+  align-items: center;
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 231, 153, 0.28), transparent 34%),
+    linear-gradient(180deg, #e42829 0%, #c91b23 100%);
+  border-radius: 8px;
+  color: #fff4d2;
+  display: flex;
+  flex-direction: column;
+  margin: -8px;
+  min-height: 320px;
+  overflow: hidden;
+  padding: 38px 20px 24px;
+  position: relative;
+  text-align: center;
+}
+
+.DoingfbRedPacketClaimResult::before {
+  background:
+    radial-gradient(circle at center, transparent 0 12px, rgba(255, 213, 112, 0.18) 13px, transparent 15px);
+  background-size: 42px 42px;
+  content: "";
+  inset: 0;
+  opacity: 0.55;
+  position: absolute;
+}
+
+.DoingfbRedPacketClaimResult > * {
+  position: relative;
+  z-index: 1;
+}
+
+.DoingfbRedPacketClaimResult-icon {
+  align-items: center;
+  background: rgba(255, 235, 166, 0.18);
+  border: 1px solid rgba(255, 238, 177, 0.42);
+  border-radius: 999px;
+  color: #ffe285;
+  display: flex;
+  font-size: 36px;
+  height: 76px;
+  justify-content: center;
+  margin-bottom: 16px;
+  width: 76px;
+}
+
+.DoingfbRedPacketClaimResult-sender {
+  color: rgba(255, 246, 214, 0.86);
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.DoingfbRedPacketClaimResult strong {
+  color: #fff8dd;
+  font-size: 34px;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+
+.DoingfbRedPacketClaimResult p {
+  color: rgba(255, 246, 214, 0.82);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+
+.DoingfbRedPacketClaimResult .Button {
+  background: #f3cf70;
+  border: 0;
+  color: #7a2600;
+  font-weight: 700;
+  min-width: 96px;
+}
+
 .DoingfbChatMessage-text .DoingfbRedPacketCard {
   max-width: 260px;
   min-height: 374px;

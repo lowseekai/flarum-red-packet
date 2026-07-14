@@ -73,6 +73,8 @@ function redPacketEnabled() {
   return !!(app.forum && app.forum.attribute('doingfb-red-packet.enabled'));
 }
 
+const redPacketIcon = 'fas fa-envelope-open-text';
+
 function rememberPendingRedPacket(composer, packetId) {
   if (!composer || !packetId) return;
 
@@ -116,6 +118,7 @@ class CreateRedPacketModal extends Modal {
 
     this.totalAmount = '';
     this.totalCount = '1';
+    this.distribution = 'average';
     this.greeting = '恭喜发财，大吉大利';
   }
 
@@ -166,6 +169,33 @@ class CreateRedPacketModal extends Modal {
         </div>
 
         <div className="Form-group">
+          <label>红包类型</label>
+          <div className="DoingfbRedPacketTypeControl">
+            <button
+              className={`Button ${this.distribution === 'average' ? 'active' : ''}`}
+              type="button"
+              onclick={() => {
+                this.distribution = 'average';
+              }}
+            >
+              普通红包
+            </button>
+            <button
+              className={`Button ${this.distribution === 'random' ? 'active' : ''}`}
+              type="button"
+              onclick={() => {
+                this.distribution = 'random';
+              }}
+            >
+              拼手气红包
+            </button>
+          </div>
+          <div className="helpText">
+            普通红包每份金额相同；拼手气红包每人随机领取。
+          </div>
+        </div>
+
+        <div className="Form-group">
           <label>祝福语</label>
           <input
             className="FormControl"
@@ -201,6 +231,7 @@ class CreateRedPacketModal extends Modal {
           attributes: {
             totalAmount: this.totalAmount,
             totalCount: this.totalCount,
+            distribution: this.distribution,
             greeting: this.greeting,
           },
         },
@@ -222,6 +253,39 @@ class CreateRedPacketModal extends Modal {
       this.loading = false;
       m.redraw();
     });
+  }
+}
+
+class ClaimedRedPacketModal extends Modal {
+  className() {
+    return 'DoingfbRedPacketClaimModal Modal--small';
+  }
+
+  title() {
+    return '红包已领取';
+  }
+
+  content() {
+    const packet = this.attrs.packet;
+    const sender = packet && packet.user && packet.user();
+
+    return (
+      <div className="Modal-body">
+        <div className="DoingfbRedPacketClaimResult">
+          <div className="DoingfbRedPacketClaimResult-icon">
+            <i className={redPacketIcon} />
+          </div>
+          <div className="DoingfbRedPacketClaimResult-sender">
+            {sender ? username(sender) : '用户'} 的红包
+          </div>
+          <strong>{formatMoney(packet && packet.actorClaimAmount())}</strong>
+          <p>{packet && packet.greeting() ? packet.greeting() : '恭喜发财，大吉大利'}</p>
+          <Button className="Button Button--primary" onclick={() => this.hide()}>
+            完成
+          </Button>
+        </div>
+      </div>
+    );
   }
 }
 
@@ -262,7 +326,6 @@ class RedPacketCard extends Component {
     const status = this.packet.status();
     const claimed = this.packet.claimedByActor();
     const canClaim = this.packet.canClaim();
-    const actionText = claimed ? '已领' : status === 'open' ? '开' : this.statusButtonText(status);
 
     return (
       <div className={`DoingfbRedPacketCard is-${status}`}>
@@ -278,7 +341,7 @@ class RedPacketCard extends Component {
           </strong>
 
           <div className="DoingfbRedPacketCard-art" aria-hidden="true">
-            <i className="fas fa-gift" />
+            <i className={redPacketIcon} />
             <span>红包</span>
           </div>
 
@@ -289,12 +352,12 @@ class RedPacketCard extends Component {
               disabled={!canClaim || this.claiming}
               onclick={() => this.claim()}
             >
-              {actionText}
+              開
             </Button>
           </div>
 
           <div className="DoingfbRedPacketCard-footer">
-            <strong>幸运红包</strong>
+            <strong>{this.packet.distribution() === 'random' ? '拼手气红包' : '普通红包'}</strong>
             <p>
               已领 {this.packet.claimedCount()} / {this.packet.totalCount()} 个，
               共 {formatMoney(this.packet.totalAmount())}
@@ -339,7 +402,7 @@ class RedPacketCard extends Component {
     }).then((payload) => {
       this.packet = app.store.pushPayload(payload);
       this.claiming = false;
-      app.alerts.show({ type: 'success' }, `领取成功：${formatMoney(this.packet.actorClaimAmount())}`);
+      app.modal.show(ClaimedRedPacketModal, { packet: this.packet });
       m.redraw();
     }).catch(() => {
       this.claiming = false;
@@ -473,7 +536,7 @@ app.initializers.add('doingfb-red-packet', () => {
 
     items.add('doingfb-red-packet', (
       <TextEditorButton
-        icon="fas fa-gift"
+        icon={redPacketIcon}
         title="发红包"
         onclick={() => app.modal.show(CreateRedPacketModal, {
           composer: this.attrs.composer,

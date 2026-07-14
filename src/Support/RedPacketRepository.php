@@ -28,7 +28,7 @@ class RedPacketRepository
             ->findOrFail($id);
     }
 
-    public function create(User $actor, float $totalAmount, int $totalCount, string $greeting): RedPacket
+    public function create(User $actor, float $totalAmount, int $totalCount, string $distribution, string $greeting): RedPacket
     {
         $actor->assertRegistered();
 
@@ -38,6 +38,7 @@ class RedPacketRepository
 
         $totalAmount = round($totalAmount, 4);
         $totalCount = max(1, $totalCount);
+        $distribution = in_array($distribution, ['average', 'random'], true) ? $distribution : 'average';
         $greeting = trim(mb_substr($greeting, 0, 120));
 
         if ($totalAmount < $this->settings->minAmount() || $totalAmount > $this->settings->maxAmount()) {
@@ -59,7 +60,7 @@ class RedPacketRepository
         }
 
         $updatedActor = null;
-        $packet = $this->db->transaction(function () use ($actor, $totalAmount, $totalCount, $greeting, &$updatedActor) {
+        $packet = $this->db->transaction(function () use ($actor, $totalAmount, $totalCount, $distribution, $greeting, &$updatedActor) {
             /** @var User $lockedActor */
             $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
 
@@ -81,7 +82,7 @@ class RedPacketRepository
             $packet->total_count = $totalCount;
             $packet->claimed_amount = 0;
             $packet->claimed_count = 0;
-            $packet->distribution = 'average';
+            $packet->distribution = $distribution;
             $packet->greeting = $greeting !== '' ? $greeting : '恭喜发财，大吉大利';
             $packet->expires_at = $now->copy()->addMinutes($this->settings->expiresMinutes());
             $packet->published_at = null;
@@ -304,6 +305,13 @@ class RedPacketRepository
 
         if ($remainingCount === 1) {
             return round($remainingAmount, 4);
+        }
+
+        if ($packet->distribution === 'random') {
+            $remainingUnits = max(1, (int) round($remainingAmount * 10000));
+            $maxUnits = max(1, $remainingUnits - ($remainingCount - 1));
+
+            return round(random_int(1, $maxUnits) / 10000, 4);
         }
 
         return round(floor(($remainingAmount / $remainingCount) * 10000) / 10000, 4);

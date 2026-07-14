@@ -28,6 +28,7 @@ class CreateRedPacketController extends AbstractCreateController
             $actor,
             (float) Arr::get($attributes, 'totalAmount'),
             (int) Arr::get($attributes, 'totalCount'),
+            (string) Arr::get($attributes, 'distribution', 'average'),
             (string) Arr::get($attributes, 'greeting', '')
         );
     }

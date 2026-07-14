@@ -33,7 +33,7 @@ app.initializers.add('doingfb-red-packet-admin', () => {
       help: app.translator.trans('doingfb-red-packet.admin.settings.expires_minutes_help'),
     })
     .registerPermission({
-      icon: 'fas fa-gift',
+      icon: 'fas fa-envelope-open-text',
       label: app.translator.trans('doingfb-red-packet.admin.permissions.create'),
       permission: 'doingfb-red-packet.create',
     }, 'reply')
