@@ -100,8 +100,13 @@
 .DoingfbRedPacketCard-meta .Avatar {
   --size: 28px;
   border: 2px solid rgba(255, 246, 208, 0.82);
+  border-radius: 50%;
   box-shadow: 0 4px 10px rgba(92, 0, 0, 0.2);
   flex: 0 0 auto;
+  height: 28px;
+  object-fit: cover;
+  overflow: hidden;
+  width: 28px;
 }
 
 .DoingfbRedPacketCard-meta > span {
@@ -501,12 +506,15 @@
 .Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-meta .Avatar {
   background-color: transparent !important;
   border: 2px solid rgba(255, 246, 208, 0.82) !important;
+  border-radius: 50% !important;
   box-shadow: 0 4px 10px rgba(92, 0, 0, 0.2) !important;
   display: block !important;
   height: 28px !important;
   margin: 0 auto !important;
   max-height: 28px !important;
   max-width: 28px !important;
+  object-fit: cover !important;
+  overflow: hidden !important;
   padding: 0 !important;
   width: 28px !important;
 }
