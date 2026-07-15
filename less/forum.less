@@ -99,14 +99,26 @@
 
 .DoingfbRedPacketCard-meta .Avatar {
   --size: 28px;
+  align-items: center;
+  background-color: var(--avatar-bg, var(--control-bg));
   border: 2px solid rgba(255, 246, 208, 0.82);
   border-radius: 50%;
   box-shadow: 0 4px 10px rgba(92, 0, 0, 0.2);
+  color: #fff;
+  display: inline-flex;
   flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 700;
   height: 28px;
+  justify-content: center;
+  line-height: 1;
   object-fit: cover;
   overflow: hidden;
   width: 28px;
+}
+
+.DoingfbRedPacketCard-meta img.Avatar {
+  display: block;
 }
 
 .DoingfbRedPacketCard-meta > span {
@@ -504,12 +516,18 @@
 }
 
 .Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-meta .Avatar {
-  background-color: transparent !important;
+  align-items: center !important;
+  background-color: var(--avatar-bg, var(--control-bg)) !important;
   border: 2px solid rgba(255, 246, 208, 0.82) !important;
   border-radius: 50% !important;
   box-shadow: 0 4px 10px rgba(92, 0, 0, 0.2) !important;
-  display: block !important;
+  color: #fff !important;
+  display: inline-flex !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
   height: 28px !important;
+  justify-content: center !important;
+  line-height: 1 !important;
   margin: 0 auto !important;
   max-height: 28px !important;
   max-width: 28px !important;
@@ -517,6 +535,10 @@
   overflow: hidden !important;
   padding: 0 !important;
   width: 28px !important;
+}
+
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-meta img.Avatar {
+  display: block !important;
 }
 
 .Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-meta > span,
