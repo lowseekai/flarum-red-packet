@@ -462,3 +462,64 @@
     margin-top: auto;
   }
 }
+
+/*
+ * Isolate the cover from broad forum custom CSS rules such as
+ * .Post-body div:has(img), which also match the red packet avatar ancestors.
+ */
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-cover {
+  align-items: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin: 0 !important;
+  padding: 24px 20px 20px !important;
+  text-align: center !important;
+}
+
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-meta {
+  align-items: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding: 0 !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-greeting,
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-art,
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-action,
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-footer {
+  align-self: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center !important;
+}
+
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-meta .Avatar {
+  background-color: transparent !important;
+  border: 2px solid rgba(255, 246, 208, 0.82) !important;
+  box-shadow: 0 4px 10px rgba(92, 0, 0, 0.2) !important;
+  display: block !important;
+  height: 28px !important;
+  margin: 0 auto !important;
+  max-height: 28px !important;
+  max-width: 28px !important;
+  padding: 0 !important;
+  width: 28px !important;
+}
+
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-meta > span,
+.Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-meta > time {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  text-align: center !important;
+}
+
+@media (max-width: 767px) {
+  .Post-body .DoingfbRedPacketMount .DoingfbRedPacketCard .DoingfbRedPacketCard-cover {
+    padding: 24px 16px 20px !important;
+  }
+}

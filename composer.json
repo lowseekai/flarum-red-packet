@@ -1,6 +1,6 @@
 {
     "name": "doingfb/flarum-red-packet",
-    "version": "0.1.13",
+    "version": "0.1.14",
     "description": "Money-based red packet extension for Flarum 1.8.",
     "type": "flarum-extension",
     "license": "MIT",
