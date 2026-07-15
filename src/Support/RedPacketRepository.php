@@ -59,18 +59,16 @@ class RedPacketRepository
             ]);
         }
 
-        if ($distribution === 'random') {
-            if (floor($totalAmount) != $totalAmount) {
-                throw new ValidationException([
-                    'totalAmount' => '拼手气红包总金额必须是整数。',
-                ]);
-            }
+        if ($totalAmount < $totalCount) {
+            throw new ValidationException([
+                'totalAmount' => '每个红包最少 1 硬币，总金额不能小于红包个数。',
+            ]);
+        }
 
-            if ($totalAmount < $totalCount) {
-                throw new ValidationException([
-                    'totalAmount' => '拼手气红包每个最少 1 硬币，总金额不能小于红包个数。',
-                ]);
-            }
+        if ($distribution === 'random' && floor($totalAmount) != $totalAmount) {
+            throw new ValidationException([
+                'totalAmount' => '拼手气红包总金额必须是整数。',
+            ]);
         }
 
         $updatedActor = null;

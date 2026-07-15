@@ -134,8 +134,11 @@ class CreateRedPacketModal extends Modal {
     const balance = app.session.user ? app.session.user.attribute('money') : null;
     const rawMinAmount = app.forum.attribute('doingfb-red-packet.minAmount') || 1;
     const maxAmount = app.forum.attribute('doingfb-red-packet.maxAmount') || 1000;
+    const rawMaxCount = app.forum.attribute('doingfb-red-packet.maxCount') || 50;
     const countValue = Math.max(1, parseInt(this.totalCount, 10) || 1);
-    const minAmount = this.distribution === 'random' ? Math.max(1, countValue, Math.ceil(Number(rawMinAmount) || 1)) : rawMinAmount;
+    const amountValue = Number(this.totalAmount);
+    const maxCount = amountValue > 0 ? Math.min(rawMaxCount, Math.max(1, Math.floor(amountValue))) : rawMaxCount;
+    const minAmount = Math.max(1, countValue, this.distribution === 'random' ? Math.ceil(Number(rawMinAmount) || 1) : Number(rawMinAmount) || 1);
     const amountStep = this.distribution === 'random' ? '1' : '0.0001';
 
     return (
@@ -164,7 +167,7 @@ class CreateRedPacketModal extends Modal {
             className="FormControl"
             type="number"
             min="1"
-            max={app.forum.attribute('doingfb-red-packet.maxCount') || 50}
+            max={maxCount}
             step="1"
             value={this.totalCount}
             oninput={(event) => {
