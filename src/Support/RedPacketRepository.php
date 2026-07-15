@@ -59,6 +59,20 @@ class RedPacketRepository
             ]);
         }
 
+        if ($distribution === 'random') {
+            if (floor($totalAmount) != $totalAmount) {
+                throw new ValidationException([
+                    'totalAmount' => '拼手气红包总金额必须是整数。',
+                ]);
+            }
+
+            if ($totalAmount < $totalCount) {
+                throw new ValidationException([
+                    'totalAmount' => '拼手气红包每个最少 1 硬币，总金额不能小于红包个数。',
+                ]);
+            }
+        }
+
         $updatedActor = null;
         $packet = $this->db->transaction(function () use ($actor, $totalAmount, $totalCount, $distribution, $greeting, &$updatedActor) {
             /** @var User $lockedActor */
@@ -303,15 +317,20 @@ class RedPacketRepository
         $remainingCount = max(1, (int) $packet->total_count - (int) $packet->claimed_count);
         $remainingAmount = $packet->remainingAmount();
 
-        if ($remainingCount === 1) {
-            return round($remainingAmount, 4);
+        if ($packet->distribution === 'random') {
+            $remainingInteger = (int) floor($remainingAmount);
+
+            if ($remainingInteger >= $remainingCount) {
+                if ($remainingCount === 1) {
+                    return (float) $remainingInteger;
+                }
+
+                return (float) random_int(1, $remainingInteger - $remainingCount + 1);
+            }
         }
 
-        if ($packet->distribution === 'random') {
-            $remainingUnits = max(1, (int) round($remainingAmount * 10000));
-            $maxUnits = max(1, $remainingUnits - ($remainingCount - 1));
-
-            return round(random_int(1, $maxUnits) / 10000, 4);
+        if ($remainingCount === 1) {
+            return round($remainingAmount, 4);
         }
 
         return round(floor(($remainingAmount / $remainingCount) * 10000) / 10000, 4);
