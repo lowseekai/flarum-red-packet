@@ -16,6 +16,7 @@ class RedPacket extends AbstractModel
         'claimed_amount' => 'float',
         'total_count' => 'integer',
         'claimed_count' => 'integer',
+        'random_amounts' => 'array',
         'expires_at' => 'datetime',
         'refunded_at' => 'datetime',
         'published_at' => 'datetime',

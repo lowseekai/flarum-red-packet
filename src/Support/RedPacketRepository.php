@@ -71,8 +71,10 @@ class RedPacketRepository
             ]);
         }
 
+        $randomAmounts = $distribution === 'random' ? $this->buildRandomClaimAmounts($totalAmount, $totalCount) : null;
+
         $updatedActor = null;
-        $packet = $this->db->transaction(function () use ($actor, $totalAmount, $totalCount, $distribution, $greeting, &$updatedActor) {
+        $packet = $this->db->transaction(function () use ($actor, $totalAmount, $totalCount, $distribution, $greeting, $randomAmounts, &$updatedActor) {
             /** @var User $lockedActor */
             $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
 
@@ -95,6 +97,7 @@ class RedPacketRepository
             $packet->claimed_amount = 0;
             $packet->claimed_count = 0;
             $packet->distribution = $distribution;
+            $packet->random_amounts = $randomAmounts;
             $packet->greeting = $greeting !== '' ? $greeting : '恭喜发财，大吉大利';
             $packet->expires_at = $now->copy()->addMinutes($this->settings->expiresMinutes());
             $packet->published_at = null;
@@ -316,6 +319,12 @@ class RedPacketRepository
         $remainingAmount = $packet->remainingAmount();
 
         if ($packet->distribution === 'random') {
+            $precomputedAmount = $this->precomputedClaimAmount($packet);
+
+            if ($precomputedAmount !== null) {
+                return $precomputedAmount;
+            }
+
             $remainingInteger = (int) floor($remainingAmount);
 
             if ($remainingInteger >= $remainingCount) {
@@ -332,6 +341,42 @@ class RedPacketRepository
         }
 
         return round(floor(($remainingAmount / $remainingCount) * 10000) / 10000, 4);
+    }
+
+    private function buildRandomClaimAmounts(float $totalAmount, int $totalCount): array
+    {
+        $amounts = array_fill(0, $totalCount, 1);
+        $remaining = (int) floor($totalAmount) - $totalCount;
+
+        for ($i = 0; $i < $remaining; $i++) {
+            $amounts[random_int(0, $totalCount - 1)]++;
+        }
+
+        for ($i = count($amounts) - 1; $i > 0; $i--) {
+            $j = random_int(0, $i);
+            [$amounts[$i], $amounts[$j]] = [$amounts[$j], $amounts[$i]];
+        }
+
+        return array_map('floatval', $amounts);
+    }
+
+    private function precomputedClaimAmount(RedPacket $packet): ?float
+    {
+        $amounts = $packet->random_amounts;
+
+        if (!is_array($amounts) || count($amounts) !== (int) $packet->total_count) {
+            return null;
+        }
+
+        $index = (int) $packet->claimed_count;
+
+        if (!array_key_exists($index, $amounts)) {
+            return null;
+        }
+
+        $amount = (float) $amounts[$index];
+
+        return $amount > 0 ? $amount : null;
     }
 
     private function refundLocked(RedPacket $packet): ?User

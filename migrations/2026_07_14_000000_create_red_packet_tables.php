@@ -14,6 +14,7 @@ return [
                 $table->decimal('claimed_amount', 20, 4)->default(0);
                 $table->unsignedInteger('claimed_count')->default(0);
                 $table->string('distribution', 20)->default('average');
+                $table->text('random_amounts')->nullable();
                 $table->string('greeting', 120)->default('');
                 $table->timestamp('expires_at')->nullable();
                 $table->timestamp('refunded_at')->nullable();
