@@ -36,12 +36,12 @@ doingfb-red-packet:
       title: Send red packet
       default_greeting: Good luck!
       total_amount: Total points
-      total_amount_help: Allowed range: {min} to {max}.
+      total_amount_help: "Allowed range: {min} to {max}."
       total_count: Number of packets
       distribution: Packet type
       average: Equal split
       random: Lucky split
       distribution_help: Equal split gives the same amount; lucky split uses random amounts.
       greeting: Greeting
-      balance: Current balance: {balance}
+      balance: "Current balance: {balance}"
       submit: Create and insert
