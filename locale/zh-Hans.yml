@@ -3,9 +3,9 @@ doingfb-red-packet:
     settings:
       enabled: 启用红包功能
       min_amount: 单个红包最低总积分
-      min_amount_help: 创建红包时允许的最低总积分。
+      min_amount_help: 创建红包时允许的最低积分总额。
       max_amount: 单个红包最高总积分
-      max_amount_help: 创建红包时允许的最高总积分。
+      max_amount_help: 创建红包时允许的最高积分总额。
       max_count: 单个红包最大个数
       max_count_help: 一个红包最多允许多少人领取。
       expires_minutes: 红包有效分钟数

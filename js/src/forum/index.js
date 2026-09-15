@@ -8,6 +8,7 @@ import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import Modal from 'flarum/common/components/Modal';
 import Post from 'flarum/forum/components/CommentPost';
 import ComposerState from 'flarum/forum/states/ComposerState';
+import classList from 'flarum/common/utils/classList';
 
 const markerPattern = /\[redpacket\s+id=(\d+)\]|\[\[doingfb-red-packet:(\d+)\]\]/gi;
 const redPacketIcon = 'fas fa-envelope-open-text';
@@ -500,9 +501,8 @@ function addComposerItem() {
 
     items.add(
       'redPacket',
-      <button
-        type="button"
-        className="Button Button--ua-reset ComposerBody-redPacket"
+      <a
+        className="ComposerBody-redPacket"
         onclick={() =>
           showModal(CreateRedPacketModal, {
             composer: this.composer,
@@ -510,11 +510,11 @@ function addComposerItem() {
           })
         }
       >
-        <span className="RedPacketLabel none">
+        <span className={classList('RedPacketLabel', 'none')}>
           <Icon name={redPacketIcon} />
           {app.translator.trans('doingfb-red-packet.forum.add')}
         </span>
-      </button>,
+      </a>,
       1
     );
   });

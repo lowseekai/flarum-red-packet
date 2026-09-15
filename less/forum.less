@@ -1,29 +1,22 @@
 .ComposerBody-redPacket {
-  line-height: inherit;
-  vertical-align: middle;
-}
-
-.ComposerBody-header {
-  > .item-redPacket {
-    margin-left: 0;
-    margin-right: 2px;
-  }
-
-  .ComposerBody-redPacket {
-    line-height: inherit;
-    margin-right: 0;
-  }
+  margin-right: 15px;
 
   .RedPacketLabel {
-    color: var(--muted-color);
+    color: var(--control-color);
     display: inline-block;
     font-size: 85%;
     font-weight: 600;
     padding: 0.1em 0.5em;
-    border: 1px dotted var(--muted-color);
     border-radius: var(--border-radius);
+    background: var(--body-bg);
     text-transform: none;
-    white-space: nowrap;
+    border: 1px solid var(--primary-color);
+
+    &.none {
+      background: transparent;
+      border: 1px dotted var(--muted-color);
+      color: var(--muted-color);
+    }
   }
 
   .RedPacketLabel .icon {
@@ -31,8 +24,11 @@
   }
 }
 
-.ComposerBody-redPacket .icon {
-  font-size: 12px;
+.ComposerBody-header {
+  > .item-redPacket {
+    margin-left: 0;
+    margin-right: 0;
+  }
 }
 
 .DoingfbRedPacketCard {
