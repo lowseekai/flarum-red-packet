@@ -1,3 +1,5 @@
+/*global s9e*/
+
 import app from 'flarum/forum/app';
 import { extend, override } from 'flarum/common/extend';
 import Component from 'flarum/common/Component';
@@ -8,6 +10,7 @@ import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import Modal from 'flarum/common/components/Modal';
 import Badge from 'flarum/common/components/Badge';
 import Discussion from 'flarum/common/models/Discussion';
+import DiscussionComposer from 'flarum/forum/components/DiscussionComposer';
 import Post from 'flarum/forum/components/CommentPost';
 import ComposerState from 'flarum/forum/states/ComposerState';
 import classList from 'flarum/common/utils/classList';
@@ -558,6 +561,17 @@ function refreshPreview(root) {
   mountCards(root);
 }
 
+function renderComposerPreview(component, root) {
+  const content = component.attrs.composer?.fields?.content?.() || '';
+
+  if (component.redPacketPreviewContent !== content || !root.childNodes.length) {
+    s9e.TextFormatter.preview(content, root);
+    component.redPacketPreviewContent = content;
+  }
+
+  refreshPreview(root);
+}
+
 function schedulePreviewRefresh(component, root) {
   if (component.redPacketPreviewRefreshPending) {
     return;
@@ -600,6 +614,16 @@ function setupPreviewObserver(component) {
     characterData: true,
   });
 
+  const isActive = !!component.attrs.composer?.isSplitView;
+  component.element
+    ?.querySelector('.TextEditor-editorContainer')
+    ?.classList.toggle('is-split-view', isActive);
+  root.classList.toggle('hidden', !isActive);
+
+  if (isActive) {
+    renderComposerPreview(component, root);
+  }
+
   schedulePreviewRefresh(component, root);
 }
 
@@ -607,6 +631,33 @@ function teardownPreviewObserver(component) {
   component.redPacketPreviewObserver?.disconnect();
   component.redPacketPreviewObserver = null;
   component.redPacketPreviewRoot = null;
+}
+
+function syncComposerPreview(component) {
+  const root = component.element?.querySelector('.Split-view.Post-body');
+  const container = component.element?.querySelector('.TextEditor-editorContainer');
+
+  if (!root || !container) {
+    return;
+  }
+
+  const isActive = !!component.attrs.composer?.isSplitView;
+  container.classList.toggle('is-split-view', isActive);
+  root.classList.toggle('hidden', !isActive);
+
+  if (isActive) {
+    renderComposerPreview(component, root);
+  } else {
+    component.redPacketPreviewContent = null;
+  }
+
+  setupPreviewObserver(component);
+}
+
+function toggleComposerPreview(event) {
+  event?.preventDefault();
+  this.composer.isSplitView = !this.composer.isSplitView;
+  m.redraw();
 }
 
 function addComposerItem() {
@@ -645,6 +696,9 @@ app.initializers.add('doingfb-red-packet', () => {
   app.store.models['doingfb-red-packets'] = RedPacket;
   Discussion.prototype.hasRedPacket = Model.attribute('hasRedPacket');
   addComposerItem();
+  extend(DiscussionComposer.prototype, 'oninit', function () {
+    this.jumpToPreview = toggleComposerPreview;
+  });
 
   override(ComposerState.prototype, 'clear', function (original) {
     const pending = this.redPacketPendingIds || [];
@@ -671,11 +725,11 @@ app.initializers.add('doingfb-red-packet', () => {
   });
 
   extend('flarum/common/components/TextEditor', 'oncreate', function () {
-    setupPreviewObserver(this);
+    syncComposerPreview(this);
   });
 
   extend('flarum/common/components/TextEditor', 'onupdate', function () {
-    setupPreviewObserver(this);
+    syncComposerPreview(this);
   });
 
   extend('flarum/common/components/TextEditor', 'onremove', function () {
