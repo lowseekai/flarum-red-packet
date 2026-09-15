@@ -103,6 +103,61 @@ function showModal(componentClass, attrs = {}) {
   return app.modal.show(() => Promise.resolve({ default: componentClass }), attrs);
 }
 
+function findChildByClassName(vnode, className) {
+  if (!vnode) {
+    return null;
+  }
+
+  const classes = vnode?.attrs?.className;
+
+  if (typeof classes === 'string' && classes.split(/\s+/).includes(className)) {
+    return vnode;
+  }
+
+  if (!Array.isArray(vnode.children)) {
+    return null;
+  }
+
+  return (
+    vnode.children.find((child) => {
+      const childClasses = child?.attrs?.className;
+
+      return (
+        typeof childClasses === 'string' &&
+        childClasses.split(/\s+/).includes(className)
+      );
+    }) ?? null
+  );
+}
+
+function placeRedPacketAfterLottery(vnode) {
+  const body = findChildByClassName(vnode?.children?.[0], 'ComposerBody');
+  const content = findChildByClassName(body, 'ComposerBody-content');
+  const header = findChildByClassName(content, 'ComposerBody-header');
+
+  if (!Array.isArray(header?.children)) {
+    return;
+  }
+
+  const redPacketIndex = header.children.findIndex((child) =>
+    child?.attrs?.className?.split?.(/\s+/).includes('item-redPacket')
+  );
+  const lotteryIndex = header.children.findIndex((child) =>
+    child?.attrs?.className?.split?.(/\s+/).includes('item-lottery')
+  );
+
+  if (redPacketIndex < 0 || lotteryIndex < 0 || redPacketIndex === lotteryIndex + 1) {
+    return;
+  }
+
+  const [redPacketItem] = header.children.splice(redPacketIndex, 1);
+  const nextLotteryIndex = header.children.findIndex((child) =>
+    child?.attrs?.className?.split?.(/\s+/).includes('item-lottery')
+  );
+
+  header.children.splice(nextLotteryIndex + 1, 0, redPacketItem);
+}
+
 class CreateRedPacketModal extends Modal {
   oninit(vnode) {
     super.oninit(vnode);
@@ -169,9 +224,9 @@ class CreateRedPacketModal extends Modal {
         <div className="Form-group">
           <label>{app.translator.trans('doingfb-red-packet.forum.modal.distribution')}</label>
           <div className="DoingfbRedPacketTypeControl">
-            <Button
+            <button
               type="button"
-              className={this.distribution === 'average' ? 'active' : ''}
+              className={`Button ${this.distribution === 'average' ? 'active' : ''}`}
               aria-pressed={this.distribution === 'average'}
               onclick={() => {
                 this.distribution = 'average';
@@ -179,10 +234,10 @@ class CreateRedPacketModal extends Modal {
               }}
             >
               {app.translator.trans('doingfb-red-packet.forum.modal.average')}
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              className={this.distribution === 'random' ? 'active' : ''}
+              className={`Button ${this.distribution === 'random' ? 'active' : ''}`}
               aria-pressed={this.distribution === 'random'}
               onclick={() => {
                 this.distribution = 'random';
@@ -190,7 +245,7 @@ class CreateRedPacketModal extends Modal {
               }}
             >
               {app.translator.trans('doingfb-red-packet.forum.modal.random')}
-            </Button>
+            </button>
           </div>
           <div className="helpText">
             {app.translator.trans('doingfb-red-packet.forum.modal.distribution_help')}
@@ -462,6 +517,10 @@ function addComposerItem() {
       </button>,
       1
     );
+  });
+
+  extend('flarum/forum/components/DiscussionComposer', 'view', function (vnode) {
+    placeRedPacketAfterLottery(vnode);
   });
 }
 
