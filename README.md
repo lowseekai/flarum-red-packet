@@ -1,19 +1,19 @@
-# DoingFB Red Packet
+# Flarum Red Packet
 
-Flarum 红包扩展，使用 `antoinefr/flarum-ext-money` 的论坛货币作为红包金额。
+Flarum 2.x red packet extension powered by `ramon/point-system`.
 
-第一版能力：
+Features:
 
-- 发平均红包，发出时先从发送者余额扣款。
-- 帖子编辑器按钮插入红包标记。
-- 帖子和聊天文本中渲染 `[redpacket id=123]` / `[[doingfb-red-packet:123]]` 红包卡片。
-- 用户点击领取，防止重复领取和超领。
-- 领取后给用户增加 money，并触发 money 更新事件。
+- Creates equal-split or lucky-split red packets using spendable points.
+- Adds the entry only to the discussion composer, immediately after the lottery entry.
+- Renders a red packet card from `[redpacket id=123]` markers.
+- Prevents duplicate claims and refunds unclaimed points after expiration.
+- Cancels and refunds unpublished packets when the marker is removed.
 
-红包短码：
+Marker format:
 
 ```text
 [redpacket id=123]
-[[doingfb-red-packet:123]]
 ```
 
+The extension does not depend on `antoinefr/flarum-ext-money`.

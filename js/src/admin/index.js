@@ -18,7 +18,7 @@ app.initializers.add('doingfb-red-packet-admin', () => {
         <div className="Form-group">
           <label>{app.translator.trans('doingfb-red-packet.admin.settings.min_amount')}</label>
           <div className="helpText">{app.translator.trans('doingfb-red-packet.admin.settings.min_amount_help')}</div>
-          <input className="FormControl" type="number" min="0.01" step="0.0001" bidi={this.setting('doingfb-red-packet.min_amount')} />
+          <input className="FormControl" type="number" min="1" step="1" bidi={this.setting('doingfb-red-packet.min_amount')} />
         </div>
       );
     })
@@ -27,7 +27,7 @@ app.initializers.add('doingfb-red-packet-admin', () => {
         <div className="Form-group">
           <label>{app.translator.trans('doingfb-red-packet.admin.settings.max_amount')}</label>
           <div className="helpText">{app.translator.trans('doingfb-red-packet.admin.settings.max_amount_help')}</div>
-          <input className="FormControl" type="number" min="0.01" step="0.0001" bidi={this.setting('doingfb-red-packet.max_amount')} />
+          <input className="FormControl" type="number" min="1" step="1" bidi={this.setting('doingfb-red-packet.max_amount')} />
         </div>
       );
     })

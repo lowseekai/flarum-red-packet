@@ -2,16 +2,12 @@
 
 namespace Doingfb\RedPacket;
 
-use Doingfb\RedPacket\Api\Controller\ClaimRedPacketController;
-use Doingfb\RedPacket\Api\Controller\CancelRedPacketController;
-use Doingfb\RedPacket\Api\Controller\CreateRedPacketController;
-use Doingfb\RedPacket\Api\Controller\ShowRedPacketController;
+use Doingfb\RedPacket\Api\Resource\RedPacketResource;
 use Doingfb\RedPacket\Console\RefundExpiredRedPacketsCommand;
 use Doingfb\RedPacket\Formatter\ConfigureRedPacketFormatter;
 use Doingfb\RedPacket\Listener\PublishRedPacketsInPost;
-use Doingfb\RedPacket\Model\RedPacket;
 use Doingfb\RedPacket\Support\RedPacketSettings;
-use Flarum\Api\Serializer\ForumSerializer;
+use Flarum\Api\Resource\ForumResource;
 use Flarum\Extend;
 use Flarum\Post\Event\Posted;
 use Flarum\Post\Event\Revised;
@@ -30,41 +26,49 @@ return [
     (new Extend\Formatter())
         ->configure(ConfigureRedPacketFormatter::class),
 
+    new Extend\ApiResource(RedPacketResource::class),
+
     (new Extend\Console())
         ->command(RefundExpiredRedPacketsCommand::class)
         ->schedule(RefundExpiredRedPacketsCommand::class, function (Event $event) {
             $event->everyFifteenMinutes();
         }),
 
-    (new Extend\Routes('api'))
-        ->get('/doingfb-red-packets/{id}', 'doingfb.red-packets.show', ShowRedPacketController::class)
-        ->post('/doingfb-red-packets', 'doingfb.red-packets.create', CreateRedPacketController::class)
-        ->delete('/doingfb-red-packets/{id}', 'doingfb.red-packets.cancel', CancelRedPacketController::class)
-        ->post('/doingfb-red-packets/{id}/claim', 'doingfb.red-packets.claim', ClaimRedPacketController::class),
-
     (new Extend\Event())
         ->listen(Posted::class, PublishRedPacketsInPost::class)
         ->listen(Revised::class, PublishRedPacketsInPost::class),
 
-    (new Extend\Model(RedPacket::class))
-        ->relationship('claims', function (RedPacket $packet) {
-            return $packet->hasMany(Model\RedPacketClaim::class, 'red_packet_id');
-        }),
-
-    (new Extend\ApiSerializer(ForumSerializer::class))
-        ->attributes(function (ForumSerializer $serializer) {
-            $actor = $serializer->getActor();
-            $settings = resolve(RedPacketSettings::class);
-
+    (new Extend\ApiResource(ForumResource::class))
+        ->fields(function () {
             return [
-                'doingfb-red-packet.enabled' => $settings->enabled(),
-                'doingfb-red-packet.minAmount' => $settings->minAmount(),
-                'doingfb-red-packet.maxAmount' => $settings->maxAmount(),
-                'doingfb-red-packet.maxCount' => $settings->maxCount(),
-                'doingfb-red-packet.expiresMinutes' => $settings->expiresMinutes(),
-                'doingfb-red-packet.canCreate' => !$actor->isGuest() && $actor->hasPermission('doingfb-red-packet.create'),
-                'doingfb-red-packet.canClaim' => !$actor->isGuest() && $actor->hasPermission('doingfb-red-packet.claim'),
-                'antoinefr-money.moneyname' => resolve('flarum.settings')->get('antoinefr-money.moneyname', '[money]'),
+                \Flarum\Api\Schema\Boolean::make('redPacketEnabled')
+                    ->get(fn () => resolve(RedPacketSettings::class)->enabled()),
+                \Flarum\Api\Schema\Integer::make('redPacketMinAmount')
+                    ->get(fn () => resolve(RedPacketSettings::class)->minAmount()),
+                \Flarum\Api\Schema\Integer::make('redPacketMaxAmount')
+                    ->get(fn () => resolve(RedPacketSettings::class)->maxAmount()),
+                \Flarum\Api\Schema\Integer::make('redPacketMaxCount')
+                    ->get(fn () => resolve(RedPacketSettings::class)->maxCount()),
+                \Flarum\Api\Schema\Str::make('redPacketCurrencyName')
+                    ->get(fn () => resolve(RedPacketSettings::class)->currencyName()),
+                \Flarum\Api\Schema\Boolean::make('canCreateRedPacket')
+                    ->get(function ($forum, \Flarum\Api\Context $context) {
+                        $actor = $context->getActor();
+
+                        return !$actor->isGuest()
+                            && resolve(RedPacketSettings::class)->enabled()
+                            && resolve(RedPacketSettings::class)->pointSystemEnabled()
+                            && $actor->hasPermission('doingfb-red-packet.create');
+                    }),
+                \Flarum\Api\Schema\Boolean::make('canClaimRedPacket')
+                    ->get(function ($forum, \Flarum\Api\Context $context) {
+                        $actor = $context->getActor();
+
+                        return !$actor->isGuest()
+                            && resolve(RedPacketSettings::class)->enabled()
+                            && resolve(RedPacketSettings::class)->pointSystemEnabled()
+                            && $actor->hasPermission('doingfb-red-packet.claim');
+                    }),
             ];
         }),
 

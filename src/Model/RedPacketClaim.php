@@ -11,7 +11,7 @@ class RedPacketClaim extends AbstractModel
     protected $table = 'red_packet_claims';
 
     protected $casts = [
-        'amount' => 'float',
+        'amount' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

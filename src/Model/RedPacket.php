@@ -12,8 +12,8 @@ class RedPacket extends AbstractModel
     protected $table = 'red_packets';
 
     protected $casts = [
-        'total_amount' => 'float',
-        'claimed_amount' => 'float',
+        'total_amount' => 'integer',
+        'claimed_amount' => 'integer',
         'total_count' => 'integer',
         'claimed_count' => 'integer',
         'random_amounts' => 'array',
@@ -44,9 +44,9 @@ class RedPacket extends AbstractModel
         return $this->claimed_count >= $this->total_count;
     }
 
-    public function remainingAmount(): float
+    public function remainingAmount(): int
     {
-        return max(0, round((float) $this->total_amount - (float) $this->claimed_amount, 4));
+        return max(0, (int) $this->total_amount - (int) $this->claimed_amount);
     }
 
     public function status(): string

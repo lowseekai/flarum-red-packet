@@ -12,17 +12,19 @@ class RedPacketSettings
 
     public function enabled(): bool
     {
-        return (bool) $this->settings->get('doingfb-red-packet.enabled', true);
+        $value = $this->settings->get('doingfb-red-packet.enabled', true);
+
+        return $value !== false && $value !== null && $value !== '0' && $value !== 0;
     }
 
-    public function minAmount(): float
+    public function minAmount(): int
     {
-        return max(0.01, (float) $this->settings->get('doingfb-red-packet.min_amount', 1));
+        return max(1, (int) $this->settings->get('doingfb-red-packet.min_amount', 1));
     }
 
-    public function maxAmount(): float
+    public function maxAmount(): int
     {
-        return max($this->minAmount(), (float) $this->settings->get('doingfb-red-packet.max_amount', 1000));
+        return max($this->minAmount(), (int) $this->settings->get('doingfb-red-packet.max_amount', 1000));
     }
 
     public function maxCount(): int
@@ -33,5 +35,19 @@ class RedPacketSettings
     public function expiresMinutes(): int
     {
         return max(1, min(10080, (int) $this->settings->get('doingfb-red-packet.expires_minutes', 1440)));
+    }
+
+    public function currencyName(): string
+    {
+        $name = trim((string) $this->settings->get('point-system.currency_name', '积分'));
+
+        return $name !== '' ? $name : '积分';
+    }
+
+    public function pointSystemEnabled(): bool
+    {
+        $value = $this->settings->get('point-system.enabled', true);
+
+        return $value !== false && $value !== null && $value !== '0' && $value !== 0;
     }
 }

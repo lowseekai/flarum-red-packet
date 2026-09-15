@@ -2,14 +2,46 @@ doingfb-red-packet:
   admin:
     settings:
       enabled: 启用红包
-      min_amount: 单个红包最低总金额
-      min_amount_help: 发红包时的最小总金额。
-      max_amount: 单个红包最高总金额
-      max_amount_help: 发红包时的最大总金额。
+      min_amount: 单个红包最低总积分
+      min_amount_help: 创建红包时允许的最低总积分。
+      max_amount: 单个红包最高总积分
+      max_amount_help: 创建红包时允许的最高总积分。
       max_count: 单个红包最大个数
-      max_count_help: 一个红包最多可被多少人领取。
-      expires_minutes: 红包过期分钟数
-      expires_minutes_help: 过期后未领取金额会通过定时任务退回发送者。
+      max_count_help: 一个红包最多允许多少人领取。
+      expires_minutes: 红包有效分钟数
+      expires_minutes_help: 红包过期后，未领取的积分会自动退回发起人。
     permissions:
-      create: 发送红包
+      create: 发放红包
       claim: 领取红包
+  forum:
+    add: 添加红包
+    created: 红包已创建并插入编辑器。
+    claimed_title: 红包领取成功
+    close: 完成
+    load_failed: 红包加载失败
+    user: 用户
+    red_packet: 红包
+    open: 拆红包
+    average: 普通红包
+    random: 拼手气红包
+    progress: 已领取 {claimed} / {total} 个，共 {amount}
+    claimed_amount: 你已领取 {amount}
+    status:
+      pending: 待发布
+      claimed: 已领完
+      expired: 已过期
+      refunded: 已退款
+      open: 暂不可领取
+    modal:
+      title: 发放红包
+      default_greeting: 恭喜发财，祝你好运！
+      total_amount: 总积分
+      total_amount_help: 可发放范围：{min} 至 {max}。
+      total_count: 红包个数
+      distribution: 红包类型
+      average: 普通红包
+      random: 拼手气红包
+      distribution_help: 普通红包平均分配，拼手气红包按随机金额领取。
+      greeting: 祝福语
+      balance: 当前余额：{balance}
+      submit: 创建并插入红包

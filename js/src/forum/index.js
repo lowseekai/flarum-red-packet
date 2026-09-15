@@ -3,19 +3,18 @@ import { extend, override } from 'flarum/common/extend';
 import Component from 'flarum/common/Component';
 import Model from 'flarum/common/Model';
 import Button from 'flarum/common/components/Button';
-import Modal from 'flarum/common/components/Modal';
+import Icon from 'flarum/common/components/Icon';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
-import TextEditor from 'flarum/common/components/TextEditor';
-import TextEditorButton from 'flarum/common/components/TextEditorButton';
-import CommentPost from 'flarum/forum/components/CommentPost';
+import Modal from 'flarum/common/components/Modal';
+import Post from 'flarum/forum/components/CommentPost';
 import ComposerState from 'flarum/forum/states/ComposerState';
-import avatar from 'flarum/common/helpers/avatar';
-import username from 'flarum/common/helpers/username';
-import humanTime from 'flarum/common/helpers/humanTime';
+
+const markerPattern = /\[redpacket\s+id=(\d+)\]|\[\[doingfb-red-packet:(\d+)\]\]/gi;
+const redPacketIcon = 'fas fa-envelope-open-text';
 
 class RedPacket extends Model {}
+
 Object.assign(RedPacket.prototype, {
-  userId: Model.attribute('userId'),
   totalAmount: Model.attribute('totalAmount'),
   totalCount: Model.attribute('totalCount'),
   claimedAmount: Model.attribute('claimedAmount'),
@@ -27,26 +26,35 @@ Object.assign(RedPacket.prototype, {
   claimedByActor: Model.attribute('claimedByActor'),
   actorClaimAmount: Model.attribute('actorClaimAmount'),
   canClaim: Model.attribute('canClaim'),
-  expiresAt: Model.attribute('expiresAt', Model.transformDate),
-  publishedAt: Model.attribute('publishedAt', Model.transformDate),
-  createdAt: Model.attribute('createdAt', Model.transformDate),
   user: Model.hasOne('user'),
 });
 
-const markerPattern = /\[redpacket\s+id=(\d+)\]|\[\[doingfb-red-packet:(\d+)\]\]/g;
+function apiUrl(path) {
+  const base = String(app.forum?.attribute('apiUrl') || '/api').replace(/\/$/, '');
 
-function redPacketIdsFromText(text) {
+  return `${base}${path}`;
+}
+
+function forumAttribute(name, fallback = null) {
+  return app.forum?.attribute(name) ?? fallback;
+}
+
+function currencyLabel(amount) {
+  return `${Number(amount || 0).toLocaleString()} ${forumAttribute('redPacketCurrencyName', '积分')}`;
+}
+
+function idsFromText(text) {
   const ids = [];
-  const seen = {};
+  const seen = new Set();
   let match;
 
   markerPattern.lastIndex = 0;
 
   while ((match = markerPattern.exec(text || '')) !== null) {
-    const id = match[1] || match[2];
+    const id = String(match[1] || match[2]);
 
-    if (id && !seen[id]) {
-      seen[id] = true;
+    if (!seen.has(id)) {
+      seen.add(id);
       ids.push(id);
     }
   }
@@ -56,60 +64,38 @@ function redPacketIdsFromText(text) {
   return ids;
 }
 
-function apiUrl(path) {
-  return `${String(app.forum.attribute('apiUrl') || '/api').replace(/\/$/, '')}${path}`;
-}
+function rememberPending(composer, id) {
+  composer.redPacketPendingIds ||= [];
 
-function moneyName() {
-  return String(app.forum.attribute('antoinefr-money.moneyname') || '[money]');
-}
-
-function formatMoney(amount) {
-  const value = Number(amount || 0).toLocaleString(undefined, { maximumFractionDigits: 4 });
-  return moneyName().replace('[money]', value);
-}
-
-function redPacketEnabled() {
-  return !!(app.forum && app.forum.attribute('doingfb-red-packet.enabled'));
-}
-
-const redPacketIcon = 'fas fa-envelope-open-text';
-
-function rememberPendingRedPacket(composer, packetId) {
-  if (!composer || !packetId) return;
-
-  composer.doingfbRedPacketPendingIds = composer.doingfbRedPacketPendingIds || [];
-
-  if (!composer.doingfbRedPacketPendingIds.includes(String(packetId))) {
-    composer.doingfbRedPacketPendingIds.push(String(packetId));
+  if (!composer.redPacketPendingIds.includes(String(id))) {
+    composer.redPacketPendingIds.push(String(id));
   }
 }
 
-function syncPendingRedPacketsWithContent(composer, content) {
-  if (!composer || !composer.doingfbRedPacketPendingIds) return;
-
-  const activeIds = redPacketIdsFromText(content).map(String);
-  const removedIds = composer.doingfbRedPacketPendingIds.filter((id) => !activeIds.includes(String(id)));
-
-  if (!removedIds.length) return;
-
-  composer.doingfbRedPacketPendingIds = composer.doingfbRedPacketPendingIds.filter((id) => activeIds.includes(String(id)));
-  cancelPendingRedPackets(removedIds);
+function cancelPending(ids) {
+  [...new Set((ids || []).map(String).filter(Boolean))].forEach((id) => {
+    app.request({
+      method: 'DELETE',
+      url: apiUrl(`/doingfb-red-packets/${id}`),
+    }).catch(() => {});
+  });
 }
 
-function cancelPendingRedPackets(packetIds) {
-  const ids = [...new Set((packetIds || []).filter(Boolean).map(String))];
+function syncPending(composer, content) {
+  const pending = composer?.redPacketPendingIds || [];
+  const active = idsFromText(content);
+  const removed = pending.filter((id) => !active.includes(String(id)));
 
-  if (!ids.length) return;
+  if (!removed.length) {
+    return;
+  }
 
-  Promise.allSettled(ids.map((id) => app.request({
-    method: 'DELETE',
-    url: apiUrl(`/doingfb-red-packets/${id}`),
-  }))).then(() => {
-    if (app.session.user) {
-      app.store.find('users', app.session.user.id()).catch(() => {});
-    }
-  });
+  composer.redPacketPendingIds = pending.filter((id) => active.includes(String(id)));
+  cancelPending(removed);
+}
+
+function canCreateRedPacket() {
+  return !!forumAttribute('canCreateRedPacket');
 }
 
 class CreateRedPacketModal extends Modal {
@@ -119,7 +105,7 @@ class CreateRedPacketModal extends Modal {
     this.totalAmount = '';
     this.totalCount = '1';
     this.distribution = 'average';
-    this.greeting = '恭喜发财，大吉大利';
+    this.greeting = app.translator.trans('doingfb-red-packet.forum.modal.default_greeting');
   }
 
   className() {
@@ -127,47 +113,46 @@ class CreateRedPacketModal extends Modal {
   }
 
   title() {
-    return '发红包';
+    return app.translator.trans('doingfb-red-packet.forum.modal.title');
   }
 
   content() {
-    const balance = app.session.user ? app.session.user.attribute('money') : null;
-    const rawMinAmount = app.forum.attribute('doingfb-red-packet.minAmount') || 1;
-    const maxAmount = app.forum.attribute('doingfb-red-packet.maxAmount') || 1000;
-    const rawMaxCount = app.forum.attribute('doingfb-red-packet.maxCount') || 50;
-    const countValue = Math.max(1, parseInt(this.totalCount, 10) || 1);
-    const amountValue = Number(this.totalAmount);
-    const maxCount = amountValue > 0 ? Math.min(rawMaxCount, Math.max(1, Math.floor(amountValue))) : rawMaxCount;
-    const minAmount = Math.max(1, countValue, this.distribution === 'random' ? Math.ceil(Number(rawMinAmount) || 1) : Number(rawMinAmount) || 1);
-    const amountStep = this.distribution === 'random' ? '1' : '0.0001';
+    const maxAmount = Number(forumAttribute('redPacketMaxAmount', 1000));
+    const maxCount = Number(forumAttribute('redPacketMaxCount', 50));
+    const amount = Number(this.totalAmount || 0);
+    const allowedCount = amount > 0 ? Math.min(maxCount, Math.floor(amount)) : maxCount;
+    const balance = app.session.user?.attribute('pointBalance');
 
     return (
-      <div className="Modal-body">
+      <form className="Modal-body" onsubmit={this.onsubmit.bind(this)}>
         <div className="Form-group">
-          <label>总金额</label>
+          <label>{app.translator.trans('doingfb-red-packet.forum.modal.total_amount')}</label>
           <input
             className="FormControl"
             type="number"
-            min={minAmount}
+            min="1"
             max={maxAmount}
-            step={amountStep}
+            step="1"
             value={this.totalAmount}
             oninput={(event) => {
               this.totalAmount = event.target.value;
             }}
           />
           <div className="helpText">
-            可发 {formatMoney(minAmount)} - {formatMoney(maxAmount)}
+            {app.translator.trans('doingfb-red-packet.forum.modal.total_amount_help', {
+              min: currencyLabel(forumAttribute('redPacketMinAmount', 1)),
+              max: currencyLabel(maxAmount),
+            })}
           </div>
         </div>
 
         <div className="Form-group">
-          <label>红包个数</label>
+          <label>{app.translator.trans('doingfb-red-packet.forum.modal.total_count')}</label>
           <input
             className="FormControl"
             type="number"
             min="1"
-            max={maxCount}
+            max={allowedCount}
             step="1"
             value={this.totalCount}
             oninput={(event) => {
@@ -177,34 +162,34 @@ class CreateRedPacketModal extends Modal {
         </div>
 
         <div className="Form-group">
-          <label>红包类型</label>
+          <label>{app.translator.trans('doingfb-red-packet.forum.modal.distribution')}</label>
           <div className="DoingfbRedPacketTypeControl">
-            <button
-              className={`Button ${this.distribution === 'average' ? 'active' : ''}`}
+            <Button
               type="button"
+              className={this.distribution === 'average' ? 'active' : ''}
               onclick={() => {
                 this.distribution = 'average';
               }}
             >
-              普通红包
-            </button>
-            <button
-              className={`Button ${this.distribution === 'random' ? 'active' : ''}`}
+              {app.translator.trans('doingfb-red-packet.forum.modal.average')}
+            </Button>
+            <Button
               type="button"
+              className={this.distribution === 'random' ? 'active' : ''}
               onclick={() => {
                 this.distribution = 'random';
               }}
             >
-              拼手气红包
-            </button>
+              {app.translator.trans('doingfb-red-packet.forum.modal.random')}
+            </Button>
           </div>
           <div className="helpText">
-            普通红包每份金额相同；拼手气红包每人随机领取。
+            {app.translator.trans('doingfb-red-packet.forum.modal.distribution_help')}
           </div>
         </div>
 
         <div className="Form-group">
-          <label>祝福语</label>
+          <label>{app.translator.trans('doingfb-red-packet.forum.modal.greeting')}</label>
           <input
             className="FormControl"
             maxlength="120"
@@ -215,52 +200,63 @@ class CreateRedPacketModal extends Modal {
           />
         </div>
 
-        {balance !== null ? <p className="helpText">当前余额：{formatMoney(balance)}</p> : null}
+        {balance !== null && balance !== undefined ? (
+          <p className="helpText">
+            {app.translator.trans('doingfb-red-packet.forum.modal.balance', {
+              balance: currencyLabel(balance),
+            })}
+          </p>
+        ) : null}
 
         <div className="Form-group">
           <Button className="Button Button--primary" type="submit" loading={this.loading}>
-            生成红包并插入帖子
+            {app.translator.trans('doingfb-red-packet.forum.modal.submit')}
           </Button>
         </div>
-      </div>
+      </form>
     );
   }
 
   onsubmit(event) {
     event.preventDefault();
+
+    if (this.loading) {
+      return;
+    }
+
     this.loading = true;
 
-    app.request({
-      method: 'POST',
-      url: apiUrl('/doingfb-red-packets'),
-      body: {
-        data: {
-          type: 'doingfb-red-packets',
-          attributes: {
-            totalAmount: this.totalAmount,
-            totalCount: this.totalCount,
-            distribution: this.distribution,
-            greeting: this.greeting,
+    app
+      .request({
+        method: 'POST',
+        url: apiUrl('/doingfb-red-packets'),
+        body: {
+          data: {
+            type: 'doingfb-red-packets',
+            attributes: {
+              totalAmount: Number(this.totalAmount),
+              totalCount: Number(this.totalCount),
+              distribution: this.distribution,
+              greeting: this.greeting,
+            },
           },
         },
-      },
-    }).then((payload) => {
-      const packet = app.store.pushPayload(payload);
-      const marker = `\n[redpacket id=${packet.id()}]\n`;
+      })
+      .then((payload) => {
+        const packet = app.store.pushPayload(payload);
+        const marker = `\n[redpacket id=${packet.id()}]\n`;
+        const composer = this.attrs.composer;
 
-      rememberPendingRedPacket(this.attrs.composer, packet.id());
-
-      if (this.attrs.editor && this.attrs.editor.insertAtCursor) {
-        this.attrs.editor.insertAtCursor(marker);
-      }
-
-      m.redraw();
-      this.hide();
-      app.alerts.show({ type: 'success' }, '红包已创建并插入。');
-    }).catch(() => {
-      this.loading = false;
-      m.redraw();
-    });
+        rememberPending(composer, packet.id());
+        this.attrs.editor?.insertAtCursor(marker, false);
+        app.alerts.show({ type: 'success' }, app.translator.trans('doingfb-red-packet.forum.created'));
+        this.hide();
+      })
+      .catch((error) => {
+        this.loading = false;
+        this.onerror(error);
+        m.redraw();
+      });
   }
 }
 
@@ -270,26 +266,20 @@ class ClaimedRedPacketModal extends Modal {
   }
 
   title() {
-    return '红包已领取';
+    return app.translator.trans('doingfb-red-packet.forum.claimed_title');
   }
 
   content() {
     const packet = this.attrs.packet;
-    const sender = packet && packet.user && packet.user();
 
     return (
       <div className="Modal-body">
         <div className="DoingfbRedPacketClaimResult">
-          <div className="DoingfbRedPacketClaimResult-icon">
-            <i className={redPacketIcon} />
-          </div>
-          <div className="DoingfbRedPacketClaimResult-sender">
-            {sender ? username(sender) : '用户'} 的红包
-          </div>
-          <strong>{formatMoney(packet && packet.actorClaimAmount())}</strong>
-          <p>{packet && packet.greeting() ? packet.greeting() : '恭喜发财，大吉大利'}</p>
+          <Icon name={redPacketIcon} />
+          <strong>{currencyLabel(packet?.actorClaimAmount())}</strong>
+          <p>{packet?.greeting()}</p>
           <Button className="Button Button--primary" onclick={() => this.hide()}>
-            完成
+            {app.translator.trans('doingfb-red-packet.forum.close')}
           </Button>
         </div>
       </div>
@@ -308,17 +298,20 @@ class RedPacketCard extends Component {
   }
 
   load() {
-    return app.request({
-      method: 'GET',
-      url: apiUrl(`/doingfb-red-packets/${this.attrs.id}`),
-    }).then((payload) => {
-      this.packet = app.store.pushPayload(payload);
-      this.loading = false;
-      m.redraw();
-    }).catch(() => {
-      this.loading = false;
-      m.redraw();
-    });
+    return app
+      .request({
+        method: 'GET',
+        url: apiUrl(`/doingfb-red-packets/${this.attrs.id}`),
+      })
+      .then((payload) => {
+        this.packet = app.store.pushPayload(payload);
+        this.loading = false;
+        m.redraw();
+      })
+      .catch(() => {
+        this.loading = false;
+        m.redraw();
+      });
   }
 
   view() {
@@ -327,32 +320,30 @@ class RedPacketCard extends Component {
     }
 
     if (!this.packet) {
-      return <div className="DoingfbRedPacketCard is-error">红包加载失败</div>;
+      return (
+        <div className="DoingfbRedPacketCard is-error">
+          {app.translator.trans('doingfb-red-packet.forum.load_failed')}
+        </div>
+      );
     }
 
-    const user = this.packet.user && this.packet.user();
-    const status = this.packet.status();
-    const claimed = this.packet.claimedByActor();
-    const canClaim = this.packet.canClaim();
+    const packet = this.packet;
+    const user = packet.user?.();
+    const status = packet.status();
+    const claimed = packet.claimedByActor();
+    const canClaim = packet.canClaim();
 
     return (
       <div className={`DoingfbRedPacketCard is-${status}`}>
         <div className="DoingfbRedPacketCard-cover">
           <div className="DoingfbRedPacketCard-meta">
-            {user ? avatar(user) : null}
-            <span>{user ? username(user) : '用户'} 的红包</span>
-            {this.packet.createdAt() ? <time>{humanTime(this.packet.createdAt())}</time> : null}
+            {user ? user.displayName() : app.translator.trans('doingfb-red-packet.forum.user')}
           </div>
-
-          <strong className="DoingfbRedPacketCard-greeting">
-            {this.packet.greeting() || '恭喜发财，大吉大利'}
-          </strong>
-
+          <strong className="DoingfbRedPacketCard-greeting">{packet.greeting()}</strong>
           <div className="DoingfbRedPacketCard-art" aria-hidden="true">
             <i className={redPacketIcon} />
-            <span>红包</span>
+            <span>{app.translator.trans('doingfb-red-packet.forum.red_packet')}</span>
           </div>
-
           <div className="DoingfbRedPacketCard-action">
             <Button
               className="Button DoingfbRedPacketCard-openButton"
@@ -360,17 +351,31 @@ class RedPacketCard extends Component {
               disabled={!canClaim || this.claiming}
               onclick={() => this.claim()}
             >
-              開
+              {canClaim
+                ? app.translator.trans('doingfb-red-packet.forum.open')
+                : this.statusText(status)}
             </Button>
           </div>
-
           <div className="DoingfbRedPacketCard-footer">
-            <strong>{this.packet.distribution() === 'random' ? '拼手气红包' : '普通红包'}</strong>
+            <strong>
+              {packet.distribution() === 'random'
+                ? app.translator.trans('doingfb-red-packet.forum.random')
+                : app.translator.trans('doingfb-red-packet.forum.average')}
+            </strong>
             <p>
-              已领 {this.packet.claimedCount()} / {this.packet.totalCount()} 个，
-              共 {formatMoney(this.packet.totalAmount())}
+              {app.translator.trans('doingfb-red-packet.forum.progress', {
+                claimed: packet.claimedCount(),
+                total: packet.totalCount(),
+                amount: currencyLabel(packet.totalAmount()),
+              })}
             </p>
-            {claimed ? <em>你已领取 {formatMoney(this.packet.actorClaimAmount())}</em> : this.statusText(status)}
+            {claimed ? (
+              <em>
+                {app.translator.trans('doingfb-red-packet.forum.claimed_amount', {
+                  amount: currencyLabel(packet.actorClaimAmount()),
+                })}
+              </em>
+            ) : null}
           </div>
         </div>
       </div>
@@ -378,191 +383,102 @@ class RedPacketCard extends Component {
   }
 
   statusText(status) {
-    const map = {
-      pending: '待发布',
-      claimed: '红包已领完',
-      expired: '红包已过期',
-      refunded: '红包已退款',
-    };
-
-    return status !== 'open' ? <em>{map[status] || '红包不可领取'}</em> : null;
-  }
-
-  statusButtonText(status) {
-    const map = {
-      pending: '待发布',
-      claimed: '已领完',
-      expired: '已过期',
-      refunded: '已退款',
-    };
-
-    return map[status] || '不可领取';
+    return app.translator.trans(`doingfb-red-packet.forum.status.${status}`);
   }
 
   claim() {
-    if (!this.packet || this.claiming) return;
+    if (!this.packet || this.claiming) {
+      return;
+    }
 
     this.claiming = true;
-    app.request({
-      method: 'POST',
-      url: apiUrl(`/doingfb-red-packets/${this.packet.id()}/claim`),
-      body: { data: { type: 'doingfb-red-packet-claims', attributes: {} } },
-    }).then((payload) => {
-      this.packet = app.store.pushPayload(payload);
-      this.claiming = false;
-      app.modal.show(ClaimedRedPacketModal, { packet: this.packet });
-      m.redraw();
-    }).catch(() => {
-      this.claiming = false;
-      this.load();
-    });
-  }
-}
 
-function replaceMarkersInElement(element) {
-  if (!element || element.dataset.doingfbRedPacketScanned === '1') return;
-  element.dataset.doingfbRedPacketScanned = '1';
-
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      if (!node.nodeValue || !markerPattern.test(node.nodeValue)) {
-        markerPattern.lastIndex = 0;
-        return NodeFilter.FILTER_REJECT;
-      }
-
-      markerPattern.lastIndex = 0;
-      return NodeFilter.FILTER_ACCEPT;
-    },
-  });
-  const nodes = [];
-
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-
-  nodes.forEach((node) => {
-    const text = node.nodeValue;
-    const fragment = document.createDocumentFragment();
-    let lastIndex = 0;
-    let match;
-
-    markerPattern.lastIndex = 0;
-    while ((match = markerPattern.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-      }
-
-      const packetId = match[1] || match[2];
-      const mount = document.createElement('span');
-      mount.className = 'DoingfbRedPacketMount';
-      mount.dataset.redPacketId = packetId;
-      fragment.appendChild(mount);
-      mountRedPacketElement(mount);
-      lastIndex = markerPattern.lastIndex;
-    }
-
-    if (lastIndex < text.length) {
-      fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
-    }
-
-    node.parentNode.replaceChild(fragment, node);
-  });
-}
-
-function mountRedPacketElement(element) {
-  if (!element || element.dataset.doingfbRedPacketMounted === '1') return;
-
-  const packetId = element.dataset.redPacketId;
-  if (!packetId) return;
-
-  element.dataset.doingfbRedPacketMounted = '1';
-  m.mount(element, { view: () => <RedPacketCard id={packetId} /> });
-}
-
-function scanRedPacketMarkers(root = document) {
-  if (!redPacketEnabled()) return;
-
-  if (root.matches && root.matches('.Post-body, .Post-preview, .DoingfbChatMessage-text')) {
-    replaceMarkersInElement(root);
-  }
-
-  if (root.matches && root.matches('.DoingfbRedPacketMount[data-red-packet-id]')) {
-    mountRedPacketElement(root);
-  }
-
-  root.querySelectorAll('.Post-body, .Post-preview, .DoingfbChatMessage-text').forEach(replaceMarkersInElement);
-  root.querySelectorAll('.DoingfbRedPacketMount[data-red-packet-id]').forEach(mountRedPacketElement);
-}
-
-let observer = null;
-
-function bootMarkerScanner() {
-  if (!app.forum) return;
-
-  scanRedPacketMarkers();
-
-  if (!observer && document.body) {
-    observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            scanRedPacketMarkers(node);
-          }
-        });
+    app
+      .request({
+        method: 'POST',
+        url: apiUrl(`/doingfb-red-packets/${this.packet.id()}/claim`),
+        body: { data: { type: 'doingfb-red-packets' } },
+      })
+      .then((payload) => {
+        this.packet = app.store.pushPayload(payload);
+        this.claiming = false;
+        app.modal.show(ClaimedRedPacketModal, { packet: this.packet });
+        m.redraw();
+      })
+      .catch((error) => {
+        this.claiming = false;
+        this.onerror?.(error);
+        this.load();
       });
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
   }
+}
+
+function mountCards(root) {
+  if (!root) {
+    return;
+  }
+
+  root.querySelectorAll('.DoingfbRedPacketMount[data-red-packet-id]').forEach((element) => {
+    if (element.dataset.mounted === '1') {
+      return;
+    }
+
+    element.dataset.mounted = '1';
+    m.mount(element, { view: () => <RedPacketCard id={element.dataset.redPacketId} /> });
+  });
+}
+
+function addComposerItem() {
+  extend('flarum/forum/components/DiscussionComposer', 'headerItems', function (items) {
+    if (!canCreateRedPacket()) {
+      return;
+    }
+
+    items.add(
+      'redPacket',
+      <button
+        type="button"
+        className="Button Button--ua-reset ComposerBody-redPacket"
+        onclick={() =>
+          app.modal.show(CreateRedPacketModal, {
+            composer: this.composer,
+            editor: this.composer.editor,
+          })
+        }
+      >
+        <Icon name={redPacketIcon} />
+        <span>{app.translator.trans('doingfb-red-packet.forum.add')}</span>
+      </button>,
+      0
+    );
+  });
 }
 
 app.initializers.add('doingfb-red-packet', () => {
   app.store.models['doingfb-red-packets'] = RedPacket;
+  addComposerItem();
 
   override(ComposerState.prototype, 'clear', function (original) {
-    const pendingIds = this.doingfbRedPacketPendingIds || [];
+    const pending = this.redPacketPendingIds || [];
 
-    this.doingfbRedPacketPendingIds = [];
+    this.redPacketPendingIds = [];
     original();
-    cancelPendingRedPackets(pendingIds);
+    cancelPending(pending);
   });
 
-  extend(TextEditor.prototype, 'buildEditorParams', function (params) {
-    let lastPreviewIds = redPacketIdsFromText(this.value).join(',');
+  extend('flarum/common/components/TextEditor', 'buildEditorParams', function (params) {
+    const composer = this.attrs.composer;
 
     params.inputListeners.push(() => {
-      const nextPreviewIds = redPacketIdsFromText(this.value).join(',');
-
-      syncPendingRedPacketsWithContent(this.attrs.composer, this.value);
-
-      if (nextPreviewIds !== lastPreviewIds) {
-        lastPreviewIds = nextPreviewIds;
-        m.redraw();
-      }
+      syncPending(composer, this.value);
     });
   });
 
-  extend(TextEditor.prototype, 'toolbarItems', function (items) {
-    if (!redPacketEnabled() || !app.forum.attribute('doingfb-red-packet.canCreate')) return;
-
-    items.add('doingfb-red-packet', (
-      <TextEditorButton
-        icon={redPacketIcon}
-        title="发红包"
-        onclick={() => app.modal.show(CreateRedPacketModal, {
-          composer: this.attrs.composer,
-          editor: this.attrs.composer && this.attrs.composer.editor,
-        })}
-      />
-    ));
+  extend(Post.prototype, 'oncreate', function () {
+    mountCards(this.element);
   });
 
-  extend(CommentPost.prototype, 'oncreate', function () {
-    scanRedPacketMarkers(this.element);
+  extend(Post.prototype, 'onupdate', function () {
+    mountCards(this.element);
   });
-
-  extend(CommentPost.prototype, 'onupdate', function () {
-    scanRedPacketMarkers(this.element);
-  });
-
-  // Flarum runs initializers before app.forum is assigned, so defer DOM scanning
-  // until after the forum payload has been pushed and the app has mounted.
-  setTimeout(bootMarkerScanner, 0);
 });

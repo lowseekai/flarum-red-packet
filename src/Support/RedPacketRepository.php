@@ -2,21 +2,20 @@
 
 namespace Doingfb\RedPacket\Support;
 
-use AntoineFr\Money\Event\MoneyUpdated;
 use Doingfb\RedPacket\Model\RedPacket;
 use Doingfb\RedPacket\Model\RedPacketClaim;
 use Flarum\Foundation\ValidationException;
 use Flarum\User\Exception\PermissionDeniedException;
 use Flarum\User\User;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Carbon;
+use Ramon\PointSystem\Repository\PointsRepository;
 
 class RedPacketRepository
 {
     public function __construct(
         private ConnectionInterface $db,
-        private Dispatcher $events,
+        private PointsRepository $points,
         private RedPacketSettings $settings
     ) {
     }
@@ -24,93 +23,74 @@ class RedPacketRepository
     public function findOrFail(int $id): RedPacket
     {
         return RedPacket::query()
-            ->with(['user', 'claims.user'])
+            ->with(['user', 'claims'])
             ->findOrFail($id);
     }
 
-    public function create(User $actor, float $totalAmount, int $totalCount, string $distribution, string $greeting): RedPacket
-    {
+    public function create(
+        User $actor,
+        int $totalAmount,
+        int $totalCount,
+        string $distribution,
+        string $greeting
+    ): RedPacket {
         $actor->assertRegistered();
+        $this->assertCanCreate($actor);
 
-        if (!$this->settings->enabled() || !$actor->hasPermission('doingfb-red-packet.create')) {
-            throw new PermissionDeniedException();
-        }
-
-        $totalAmount = round($totalAmount, 4);
+        $totalAmount = max(0, $totalAmount);
         $totalCount = max(1, $totalCount);
-        $distribution = in_array($distribution, ['average', 'random'], true) ? $distribution : 'average';
+        $distribution = in_array($distribution, ['average', 'random'], true)
+            ? $distribution
+            : 'average';
         $greeting = trim(mb_substr($greeting, 0, 120));
 
-        if ($totalAmount < $this->settings->minAmount() || $totalAmount > $this->settings->maxAmount()) {
-            throw new ValidationException([
-                'totalAmount' => sprintf('红包金额必须在 %s 到 %s 之间。', $this->settings->minAmount(), $this->settings->maxAmount()),
-            ]);
-        }
+        $this->validateAmount($totalAmount, $totalCount, $distribution);
 
-        if ($totalCount > $this->settings->maxCount()) {
-            throw new ValidationException([
-                'totalCount' => sprintf('红包个数最多 %d 个。', $this->settings->maxCount()),
-            ]);
-        }
+        $randomAmounts = $distribution === 'random'
+            ? $this->buildRandomClaimAmounts($totalAmount, $totalCount)
+            : null;
 
-        if ($totalAmount / $totalCount < 0.0001) {
-            throw new ValidationException([
-                'totalAmount' => '单个红包金额过低，请减少个数或提高总金额。',
-            ]);
-        }
-
-        if ($totalAmount < $totalCount) {
-            throw new ValidationException([
-                'totalAmount' => '每个红包最少 1 硬币，总金额不能小于红包个数。',
-            ]);
-        }
-
-        if ($distribution === 'random' && floor($totalAmount) != $totalAmount) {
-            throw new ValidationException([
-                'totalAmount' => '拼手气红包总金额必须是整数。',
-            ]);
-        }
-
-        $randomAmounts = $distribution === 'random' ? $this->buildRandomClaimAmounts($totalAmount, $totalCount) : null;
-
-        $updatedActor = null;
-        $packet = $this->db->transaction(function () use ($actor, $totalAmount, $totalCount, $distribution, $greeting, $randomAmounts, &$updatedActor) {
-            /** @var User $lockedActor */
-            $lockedActor = User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
-
-            if ((float) $lockedActor->money < $totalAmount) {
-                throw new ValidationException([
-                    'totalAmount' => '余额不足，无法发送红包。',
-                ]);
-            }
-
-            $lockedActor->money = round((float) $lockedActor->money - $totalAmount, 4);
-            $lockedActor->save();
-            $updatedActor = $lockedActor;
-
-            $now = Carbon::now();
-
+        $packet = $this->db->transaction(function () use (
+            $actor,
+            $totalAmount,
+            $totalCount,
+            $distribution,
+            $greeting,
+            $randomAmounts
+        ): RedPacket {
             $packet = new RedPacket();
-            $packet->user_id = (int) $lockedActor->id;
+            $packet->user_id = (int) $actor->id;
             $packet->total_amount = $totalAmount;
             $packet->total_count = $totalCount;
             $packet->claimed_amount = 0;
             $packet->claimed_count = 0;
             $packet->distribution = $distribution;
             $packet->random_amounts = $randomAmounts;
-            $packet->greeting = $greeting !== '' ? $greeting : '恭喜发财，大吉大利';
-            $packet->expires_at = $now->copy()->addMinutes($this->settings->expiresMinutes());
+            $packet->greeting = $greeting !== '' ? $greeting : '恭喜发财，祝你好运！';
+            $packet->expires_at = Carbon::now()->addMinutes($this->settings->expiresMinutes());
             $packet->published_at = null;
-            $packet->created_at = $now;
-            $packet->updated_at = $now;
             $packet->save();
+
+            try {
+                $this->points->deduct(
+                    $actor,
+                    $totalAmount,
+                    'red_packet.create',
+                    'doingfb-red-packet',
+                    (int) $packet->id
+                );
+            } catch (\DomainException $exception) {
+                if ($exception->getMessage() === 'Insufficient point balance') {
+                    throw new ValidationException([
+                        'totalAmount' => '积分余额不足，无法发放红包。',
+                    ]);
+                }
+
+                throw $exception;
+            }
 
             return $packet;
         });
-
-        if ($updatedActor) {
-            $this->events->dispatch(new MoneyUpdated($updatedActor));
-        }
 
         return $this->findOrFail((int) $packet->id);
     }
@@ -118,18 +98,16 @@ class RedPacketRepository
     public function claim(User $actor, int $packetId): RedPacket
     {
         $actor->assertRegistered();
+        $this->assertCanClaim($actor);
 
-        if (!$this->settings->enabled() || !$actor->hasPermission('doingfb-red-packet.claim')) {
-            throw new PermissionDeniedException();
-        }
-
-        $updatedUser = null;
-        $updatedSender = null;
         $expired = false;
 
-        $packet = $this->db->transaction(function () use ($actor, $packetId, &$updatedUser, &$updatedSender, &$expired) {
+        $packet = $this->db->transaction(function () use ($actor, $packetId, &$expired): RedPacket {
             /** @var RedPacket $packet */
-            $packet = RedPacket::query()->whereKey($packetId)->lockForUpdate()->firstOrFail();
+            $packet = RedPacket::query()
+                ->whereKey($packetId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             if ($packet->refunded_at !== null) {
                 throw new ValidationException(['redPacket' => '红包已退款。']);
@@ -140,7 +118,7 @@ class RedPacketRepository
             }
 
             if ($packet->isExpired()) {
-                $updatedSender = $this->refundLocked($packet);
+                $this->refundLocked($packet);
                 $expired = true;
 
                 return $packet;
@@ -150,41 +128,40 @@ class RedPacketRepository
                 throw new ValidationException(['redPacket' => '红包已经被领完。']);
             }
 
-            if (RedPacketClaim::query()->where('red_packet_id', $packet->id)->where('user_id', $actor->id)->exists()) {
+            if (
+                RedPacketClaim::query()
+                    ->where('red_packet_id', $packet->id)
+                    ->where('user_id', $actor->id)
+                    ->exists()
+            ) {
                 throw new ValidationException(['redPacket' => '你已经领取过这个红包。']);
             }
 
             $amount = $this->nextClaimAmount($packet);
 
-            /** @var User $lockedUser */
-            $lockedUser = User::query()->whereKey($actor->id)->lockForUpdate()->firstOrFail();
-            $lockedUser->money = round((float) $lockedUser->money + $amount, 4);
-            $lockedUser->save();
-            $updatedUser = $lockedUser;
+            $this->points->award(
+                $actor,
+                $amount,
+                'red_packet.claim',
+                'doingfb-red-packet',
+                (int) $packet->id
+            );
 
-            $claim = new RedPacketClaim();
-            $claim->red_packet_id = (int) $packet->id;
-            $claim->user_id = (int) $lockedUser->id;
-            $claim->amount = $amount;
-            $claim->save();
+            RedPacketClaim::query()->create([
+                'red_packet_id' => (int) $packet->id,
+                'user_id' => (int) $actor->id,
+                'amount' => $amount,
+            ]);
 
-            $packet->claimed_amount = round((float) $packet->claimed_amount + $amount, 4);
+            $packet->claimed_amount = (int) $packet->claimed_amount + $amount;
             $packet->claimed_count = (int) $packet->claimed_count + 1;
             $packet->save();
 
             return $packet;
         });
 
-        if ($updatedUser) {
-            $this->events->dispatch(new MoneyUpdated($updatedUser));
-        }
-
-        if ($updatedSender) {
-            $this->events->dispatch(new MoneyUpdated($updatedSender));
-        }
-
         if ($expired) {
-            throw new ValidationException(['redPacket' => '红包已过期。']);
+            throw new ValidationException(['redPacket' => '红包已过期，剩余积分已退回发起人。']);
         }
 
         return $this->findOrFail((int) $packet->id);
@@ -194,11 +171,12 @@ class RedPacketRepository
     {
         $actor->assertRegistered();
 
-        $updatedSender = null;
-
-        $this->db->transaction(function () use ($actor, $packetId, &$updatedSender) {
+        $this->db->transaction(function () use ($actor, $packetId): void {
             /** @var RedPacket|null $packet */
-            $packet = RedPacket::query()->whereKey($packetId)->lockForUpdate()->first();
+            $packet = RedPacket::query()
+                ->whereKey($packetId)
+                ->lockForUpdate()
+                ->first();
 
             if (!$packet || $packet->refunded_at !== null || $packet->published_at !== null) {
                 return;
@@ -208,17 +186,17 @@ class RedPacketRepository
                 throw new PermissionDeniedException();
             }
 
-            $updatedSender = $this->refundLocked($packet);
+            $this->refundLocked($packet);
         });
-
-        if ($updatedSender) {
-            $this->events->dispatch(new MoneyUpdated($updatedSender));
-        }
     }
 
     public function publishFromContent(string $content, int $userId): void
     {
-        if (!preg_match_all('/\[redpacket\s+id=(\d+)\]|\[\[doingfb-red-packet:(\d+)\]\]/i', $content, $matches)) {
+        if (!preg_match_all(
+            '/\[redpacket\s+id=(\d+)\]|\[\[doingfb-red-packet:(\d+)\]\]/i',
+            $content,
+            $matches
+        )) {
             return;
         }
 
@@ -249,29 +227,7 @@ class RedPacketRepository
             ->pluck('id')
             ->all();
 
-        $count = 0;
-
-        foreach ($ids as $id) {
-            $updatedSender = null;
-
-            $this->db->transaction(function () use ($id, &$updatedSender) {
-                /** @var RedPacket|null $packet */
-                $packet = RedPacket::query()->whereKey($id)->lockForUpdate()->first();
-
-                if (!$packet || $packet->refunded_at !== null || !$packet->isExpired()) {
-                    return;
-                }
-
-                $updatedSender = $this->refundLocked($packet);
-            });
-
-            if ($updatedSender) {
-                $count++;
-                $this->events->dispatch(new MoneyUpdated($updatedSender));
-            }
-        }
-
-        return $count;
+        return $this->refundIds($ids, true);
     }
 
     public function refundStaleUnpublished(int $minutes = 60, int $limit = 100): int
@@ -288,32 +244,64 @@ class RedPacketRepository
             ->pluck('id')
             ->all();
 
-        $count = 0;
-
-        foreach ($ids as $id) {
-            $updatedSender = null;
-
-            $this->db->transaction(function () use ($id, &$updatedSender) {
-                /** @var RedPacket|null $packet */
-                $packet = RedPacket::query()->whereKey($id)->lockForUpdate()->first();
-
-                if (!$packet || $packet->refunded_at !== null || $packet->published_at !== null) {
-                    return;
-                }
-
-                $updatedSender = $this->refundLocked($packet);
-            });
-
-            if ($updatedSender) {
-                $count++;
-                $this->events->dispatch(new MoneyUpdated($updatedSender));
-            }
-        }
-
-        return $count;
+        return $this->refundIds($ids, false);
     }
 
-    private function nextClaimAmount(RedPacket $packet): float
+    private function assertCanCreate(User $actor): void
+    {
+        if (
+            !$this->settings->enabled()
+            || !$this->settings->pointSystemEnabled()
+            || !$actor->hasPermission('doingfb-red-packet.create')
+        ) {
+            throw new PermissionDeniedException();
+        }
+    }
+
+    private function assertCanClaim(User $actor): void
+    {
+        if (
+            !$this->settings->enabled()
+            || !$this->settings->pointSystemEnabled()
+            || !$actor->hasPermission('doingfb-red-packet.claim')
+        ) {
+            throw new PermissionDeniedException();
+        }
+    }
+
+    private function validateAmount(int $totalAmount, int $totalCount, string $distribution): void
+    {
+        if (
+            $totalAmount < $this->settings->minAmount()
+            || $totalAmount > $this->settings->maxAmount()
+        ) {
+            throw new ValidationException([
+                'totalAmount' => sprintf(
+                    '红包总积分必须在 %d 到 %d 之间。',
+                    $this->settings->minAmount(),
+                    $this->settings->maxAmount()
+                ),
+            ]);
+        }
+
+        if ($totalCount > $this->settings->maxCount()) {
+            throw new ValidationException([
+                'totalCount' => sprintf(
+                    '红包个数最多为 %d 个。',
+                    $this->settings->maxCount()
+                ),
+            ]);
+        }
+
+        if ($totalAmount < $totalCount) {
+            throw new ValidationException([
+                'totalAmount' => '每个红包至少需要 1 积分，总积分不能少于红包个数。',
+            ]);
+        }
+
+    }
+
+    private function nextClaimAmount(RedPacket $packet): int
     {
         $remainingCount = max(1, (int) $packet->total_count - (int) $packet->claimed_count);
         $remainingAmount = $packet->remainingAmount();
@@ -325,61 +313,78 @@ class RedPacketRepository
                 return $precomputedAmount;
             }
 
-            $remainingInteger = (int) floor($remainingAmount);
-
-            if ($remainingInteger >= $remainingCount) {
-                if ($remainingCount === 1) {
-                    return (float) $remainingInteger;
-                }
-
-                return (float) random_int(1, $remainingInteger - $remainingCount + 1);
-            }
+            return random_int(1, $remainingAmount - $remainingCount + 1);
         }
 
-        if ($remainingCount === 1) {
-            return round($remainingAmount, 4);
-        }
+        $base = intdiv($remainingAmount, $remainingCount);
+        $remainder = $remainingAmount % $remainingCount;
 
-        return round(floor(($remainingAmount / $remainingCount) * 10000) / 10000, 4);
+        return $base + ((int) $packet->claimed_count < $remainder ? 1 : 0);
     }
 
-    private function buildRandomClaimAmounts(float $totalAmount, int $totalCount): array
+    private function buildRandomClaimAmounts(int $totalAmount, int $totalCount): array
     {
         $amounts = array_fill(0, $totalCount, 1);
-        $remaining = (int) floor($totalAmount) - $totalCount;
+        $remaining = $totalAmount - $totalCount;
 
-        for ($i = 0; $i < $remaining; $i++) {
+        for ($index = 0; $index < $remaining; $index++) {
             $amounts[random_int(0, $totalCount - 1)]++;
         }
 
-        for ($i = count($amounts) - 1; $i > 0; $i--) {
-            $j = random_int(0, $i);
-            [$amounts[$i], $amounts[$j]] = [$amounts[$j], $amounts[$i]];
+        for ($index = count($amounts) - 1; $index > 0; $index--) {
+            $swap = random_int(0, $index);
+            [$amounts[$index], $amounts[$swap]] = [$amounts[$swap], $amounts[$index]];
         }
 
-        return array_map('floatval', $amounts);
+        return $amounts;
     }
 
-    private function precomputedClaimAmount(RedPacket $packet): ?float
+    private function precomputedClaimAmount(RedPacket $packet): ?int
     {
         $amounts = $packet->random_amounts;
+        $index = (int) $packet->claimed_count;
 
         if (!is_array($amounts) || count($amounts) !== (int) $packet->total_count) {
             return null;
         }
 
-        $index = (int) $packet->claimed_count;
-
-        if (!array_key_exists($index, $amounts)) {
-            return null;
-        }
-
-        $amount = (float) $amounts[$index];
-
-        return $amount > 0 ? $amount : null;
+        return isset($amounts[$index]) && (int) $amounts[$index] > 0
+            ? (int) $amounts[$index]
+            : null;
     }
 
-    private function refundLocked(RedPacket $packet): ?User
+    private function refundIds(array $ids, bool $requireExpired): int
+    {
+        $count = 0;
+
+        foreach ($ids as $id) {
+            $refunded = $this->db->transaction(function () use ($id, $requireExpired): bool {
+                /** @var RedPacket|null $packet */
+                $packet = RedPacket::query()
+                    ->whereKey($id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$packet || $packet->refunded_at !== null) {
+                    return false;
+                }
+
+                if ($requireExpired && !$packet->isExpired()) {
+                    return false;
+                }
+
+                $this->refundLocked($packet);
+
+                return true;
+            });
+
+            $count += (int) $refunded;
+        }
+
+        return $count;
+    }
+
+    private function refundLocked(RedPacket $packet): void
     {
         $remaining = $packet->remainingAmount();
         $packet->refunded_at = Carbon::now();
@@ -387,14 +392,17 @@ class RedPacketRepository
         $packet->save();
 
         if ($remaining <= 0) {
-            return null;
+            return;
         }
 
-        /** @var User $sender */
-        $sender = User::query()->whereKey($packet->user_id)->lockForUpdate()->firstOrFail();
-        $sender->money = round((float) $sender->money + $remaining, 4);
-        $sender->save();
+        $sender = User::query()->findOrFail($packet->user_id);
 
-        return $sender;
+        $this->points->award(
+            $sender,
+            $remaining,
+            'red_packet.refund',
+            'doingfb-red-packet',
+            (int) $packet->id
+        );
     }
 }

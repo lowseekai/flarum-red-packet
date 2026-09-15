@@ -2,14 +2,46 @@ doingfb-red-packet:
   admin:
     settings:
       enabled: Enable red packets
-      min_amount: Minimum red packet total amount
-      min_amount_help: Minimum total amount when creating a red packet.
-      max_amount: Maximum red packet total amount
-      max_amount_help: Maximum total amount when creating a red packet.
-      max_count: Maximum red packet count
-      max_count_help: Maximum number of users who can claim a red packet.
-      expires_minutes: Expiration minutes
-      expires_minutes_help: Unclaimed money is refunded to the sender by the scheduled task after expiration.
+      min_amount: Minimum total points
+      min_amount_help: Minimum total points allowed when creating a red packet.
+      max_amount: Maximum total points
+      max_amount_help: Maximum total points allowed when creating a red packet.
+      max_count: Maximum packet count
+      max_count_help: Maximum number of users who can claim one packet.
+      expires_minutes: Expiration in minutes
+      expires_minutes_help: Unclaimed points are automatically returned after expiration.
     permissions:
       create: Send red packets
       claim: Claim red packets
+  forum:
+    add: Add red packet
+    created: Red packet created and inserted into the editor.
+    claimed_title: Red packet claimed
+    close: Done
+    load_failed: Failed to load red packet
+    user: User
+    red_packet: Red packet
+    open: Open
+    average: Equal split
+    random: Lucky split
+    progress: Claimed {claimed} / {total}, total {amount}
+    claimed_amount: You received {amount}
+    status:
+      pending: Pending
+      claimed: Fully claimed
+      expired: Expired
+      refunded: Refunded
+      open: Not available
+    modal:
+      title: Send red packet
+      default_greeting: Good luck!
+      total_amount: Total points
+      total_amount_help: Allowed range: {min} to {max}.
+      total_count: Number of packets
+      distribution: Packet type
+      average: Equal split
+      random: Lucky split
+      distribution_help: Equal split gives the same amount; lucky split uses random amounts.
+      greeting: Greeting
+      balance: Current balance: {balance}
+      submit: Create and insert
