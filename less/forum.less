@@ -1,8 +1,33 @@
 .ComposerBody-redPacket {
-  align-items: center;
-  display: inline-flex;
-  gap: 4px;
-  margin-left: 4px;
+  line-height: inherit;
+  vertical-align: middle;
+}
+
+.ComposerBody-header {
+  > .item-redPacket {
+    margin-left: 0;
+    margin-right: 2px;
+  }
+
+  .ComposerBody-redPacket {
+    margin-right: 0;
+  }
+
+  .RedPacketLabel {
+    color: var(--muted-color);
+    display: inline-block;
+    font-size: 85%;
+    font-weight: 600;
+    padding: 0.1em 0.5em;
+    border: 1px dotted var(--muted-color);
+    border-radius: var(--border-radius);
+    text-transform: none;
+    white-space: nowrap;
+  }
+
+  .RedPacketLabel .icon {
+    margin-right: 2px;
+  }
 }
 
 .ComposerBody-redPacket .icon {
@@ -300,14 +325,23 @@
 }
 
 .DoingfbRedPacketTypeControl .Button {
+  background: transparent;
+  border: 1px solid var(--control-bg);
   border-radius: 4px;
   font-weight: 600;
   margin: 0;
   width: 100%;
 }
 
-.DoingfbRedPacketTypeControl .Button.active {
+.DoingfbRedPacketTypeControl .Button:hover,
+.DoingfbRedPacketTypeControl .Button:focus {
+  border-color: var(--primary-color);
+}
+
+.DoingfbRedPacketTypeControl .Button.active,
+.DoingfbRedPacketTypeControl .Button[aria-pressed="true"] {
   background: #d9232e;
+  border-color: #d9232e;
   color: #fff7dc;
 }
 

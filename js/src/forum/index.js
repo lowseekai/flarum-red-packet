@@ -98,6 +98,11 @@ function canCreateRedPacket() {
   return !!forumAttribute('canCreateRedPacket');
 }
 
+function showModal(componentClass, attrs = {}) {
+  // Flarum 2 expects extension modals to be loaded through the async modal API.
+  return app.modal.show(() => Promise.resolve({ default: componentClass }), attrs);
+}
+
 class CreateRedPacketModal extends Modal {
   oninit(vnode) {
     super.oninit(vnode);
@@ -167,8 +172,10 @@ class CreateRedPacketModal extends Modal {
             <Button
               type="button"
               className={this.distribution === 'average' ? 'active' : ''}
+              aria-pressed={this.distribution === 'average'}
               onclick={() => {
                 this.distribution = 'average';
+                m.redraw();
               }}
             >
               {app.translator.trans('doingfb-red-packet.forum.modal.average')}
@@ -176,8 +183,10 @@ class CreateRedPacketModal extends Modal {
             <Button
               type="button"
               className={this.distribution === 'random' ? 'active' : ''}
+              aria-pressed={this.distribution === 'random'}
               onclick={() => {
                 this.distribution = 'random';
+                m.redraw();
               }}
             >
               {app.translator.trans('doingfb-red-packet.forum.modal.random')}
@@ -402,7 +411,7 @@ class RedPacketCard extends Component {
       .then((payload) => {
         this.packet = app.store.pushPayload(payload);
         this.claiming = false;
-        app.modal.show(ClaimedRedPacketModal, { packet: this.packet });
+        showModal(ClaimedRedPacketModal, { packet: this.packet });
         m.redraw();
       })
       .catch((error) => {
@@ -440,16 +449,18 @@ function addComposerItem() {
         type="button"
         className="Button Button--ua-reset ComposerBody-redPacket"
         onclick={() =>
-          app.modal.show(CreateRedPacketModal, {
+          showModal(CreateRedPacketModal, {
             composer: this.composer,
             editor: this.composer.editor,
           })
         }
       >
-        <Icon name={redPacketIcon} />
-        <span>{app.translator.trans('doingfb-red-packet.forum.add')}</span>
+        <span className="RedPacketLabel none">
+          <Icon name={redPacketIcon} />
+          {app.translator.trans('doingfb-red-packet.forum.add')}
+        </span>
       </button>,
-      0
+      1
     );
   });
 }
