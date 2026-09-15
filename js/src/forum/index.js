@@ -44,6 +44,18 @@ function currencyLabel(amount) {
   return `${Number(amount || 0).toLocaleString()} ${forumAttribute('redPacketCurrencyName', '积分')}`;
 }
 
+function translationText(key, params) {
+  const value = app.translator.trans(key, params);
+
+  if (Array.isArray(value)) {
+    return value
+      .filter((part) => typeof part === 'string' || typeof part === 'number')
+      .join('');
+  }
+
+  return typeof value === 'string' ? value : String(value ?? '');
+}
+
 function idsFromText(text) {
   const ids = [];
   const seen = new Set();
@@ -166,7 +178,7 @@ class CreateRedPacketModal extends Modal {
     this.totalAmount = '';
     this.totalCount = '1';
     this.distribution = 'average';
-    this.greeting = app.translator.trans('doingfb-red-packet.forum.modal.default_greeting');
+    this.greeting = translationText('doingfb-red-packet.forum.modal.default_greeting');
   }
 
   className() {
@@ -302,7 +314,7 @@ class CreateRedPacketModal extends Modal {
               totalAmount: Number(this.totalAmount),
               totalCount: Number(this.totalCount),
               distribution: this.distribution,
-              greeting: this.greeting,
+              greeting: String(this.greeting ?? ''),
             },
           },
         },
