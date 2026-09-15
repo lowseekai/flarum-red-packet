@@ -1,7 +1,7 @@
 doingfb-red-packet:
   admin:
     settings:
-      enabled: 启用红包
+      enabled: 启用红包功能
       min_amount: 单个红包最低总积分
       min_amount_help: 创建红包时允许的最低总积分。
       max_amount: 单个红包最高总积分
@@ -36,12 +36,12 @@ doingfb-red-packet:
       title: 发放红包
       default_greeting: 恭喜发财，祝你好运！
       total_amount: 总积分
-      total_amount_help: 可发放范围：{min} 至 {max}。
+      total_amount_help: "可发放范围：{min} 至 {max}。"
       total_count: 红包个数
       distribution: 红包类型
       average: 普通红包
       random: 拼手气红包
       distribution_help: 普通红包平均分配，拼手气红包按随机金额领取。
       greeting: 祝福语
-      balance: 当前余额：{balance}
+      balance: "当前余额：{balance}"
       submit: 创建并插入红包
