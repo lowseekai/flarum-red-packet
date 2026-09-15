@@ -501,8 +501,9 @@ function addComposerItem() {
 
     items.add(
       'redPacket',
-      <a
-        className="ComposerBody-redPacket"
+      <button
+        type="button"
+        className="Button Button--ua-reset ComposerBody-redPacket"
         onclick={() =>
           showModal(CreateRedPacketModal, {
             composer: this.composer,
@@ -514,7 +515,7 @@ function addComposerItem() {
           <Icon name={redPacketIcon} />
           {app.translator.trans('doingfb-red-packet.forum.add')}
         </span>
-      </a>,
+      </button>,
       1
     );
   });
