@@ -613,6 +613,8 @@ function setupPreviewObserver(component) {
     characterData: true,
   });
 
+  bindPreviewButton(component);
+
   const isActive = !!component.attrs.composer?.isSplitView;
   component.element
     ?.querySelector('.TextEditor-editorContainer')
@@ -657,6 +659,36 @@ function toggleComposerPreview(event) {
   event?.preventDefault();
   this.composer.isSplitView = !this.composer.isSplitView;
   m.redraw();
+}
+
+function bindPreviewButton(component) {
+  const button = component.element?.querySelector('.item-preview button');
+
+  if (!button || component.redPacketPreviewButton === button) {
+    return;
+  }
+
+  component.redPacketPreviewButton?.removeEventListener(
+    'click',
+    component.redPacketPreviewButtonHandler,
+    true
+  );
+
+  component.redPacketPreviewButton = button;
+  component.redPacketPreviewButtonHandler = (event) => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const composer = component.attrs.composer;
+
+    if (!composer) {
+      return;
+    }
+
+    composer.isSplitView = !composer.isSplitView;
+    m.redraw();
+  };
+  button.addEventListener('click', component.redPacketPreviewButtonHandler, true);
 }
 
 function addComposerItem() {
@@ -732,6 +764,11 @@ app.initializers.add('doingfb-red-packet', () => {
   });
 
   extend('flarum/common/components/TextEditor', 'onremove', function () {
+    this.redPacketPreviewButton?.removeEventListener(
+      'click',
+      this.redPacketPreviewButtonHandler,
+      true
+    );
     teardownPreviewObserver(this);
   });
 
