@@ -21,7 +21,7 @@ doingfb-red-packet:
     load_failed: 红包加载失败
     user: 用户
     red_packet: 红包
-    open: 拆红包
+    open: 開
     average: 普通红包
     random: 拼手气红包
     progress: 已领取 {claimed} / {total} 个，共 {amount}

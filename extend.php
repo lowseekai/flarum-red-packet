@@ -8,6 +8,9 @@ use Doingfb\RedPacket\Formatter\ConfigureRedPacketFormatter;
 use Doingfb\RedPacket\Listener\PublishRedPacketsInPost;
 use Doingfb\RedPacket\Support\RedPacketSettings;
 use Flarum\Api\Resource\ForumResource;
+use Flarum\Api\Resource\DiscussionResource;
+use Flarum\Api\Schema;
+use Flarum\Discussion\Discussion;
 use Flarum\Extend;
 use Flarum\Post\Event\Posted;
 use Flarum\Post\Event\Revised;
@@ -27,6 +30,19 @@ return [
         ->configure(ConfigureRedPacketFormatter::class),
 
     new Extend\ApiResource(RedPacketResource::class),
+
+    (new Extend\ApiResource(DiscussionResource::class))
+        ->fields(fn () => [
+            Schema\Boolean::make('hasRedPacket')
+                ->get(function (Discussion $discussion): bool {
+                    $content = (string) ($discussion->firstPost?->content ?? '');
+
+                    return (bool) preg_match(
+                        '/\[redpacket\s+id=\d+\]|\[\[doingfb-red-packet:\d+\]\]/i',
+                        $content
+                    );
+                }),
+        ]),
 
     (new Extend\Console())
         ->command(RefundExpiredRedPacketsCommand::class)

@@ -6,6 +6,8 @@ import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import Modal from 'flarum/common/components/Modal';
+import Badge from 'flarum/common/components/Badge';
+import Discussion from 'flarum/common/models/Discussion';
 import Post from 'flarum/forum/components/CommentPost';
 import ComposerState from 'flarum/forum/states/ComposerState';
 import classList from 'flarum/common/utils/classList';
@@ -505,6 +507,108 @@ function mountCards(root) {
   });
 }
 
+function replacePreviewMarkers(root) {
+  const pattern = new RegExp(markerPattern.source, markerPattern.flags);
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+
+  while ((node = walker.nextNode())) {
+    if (node.parentElement?.closest('.DoingfbRedPacketMount')) {
+      continue;
+    }
+
+    pattern.lastIndex = 0;
+
+    if (pattern.test(node.nodeValue || '')) {
+      textNodes.push(node);
+    }
+  }
+
+  textNodes.forEach((textNode) => {
+    const text = textNode.nodeValue || '';
+    const fragment = document.createDocumentFragment();
+    let cursor = 0;
+    let match;
+
+    pattern.lastIndex = 0;
+
+    while ((match = pattern.exec(text)) !== null) {
+      if (match.index > cursor) {
+        fragment.append(text.slice(cursor, match.index));
+      }
+
+      const mount = document.createElement('span');
+      mount.className = 'DoingfbRedPacketMount';
+      mount.dataset.redPacketId = String(match[1] || match[2]);
+      fragment.append(mount);
+      cursor = match.index + match[0].length;
+    }
+
+    if (cursor < text.length) {
+      fragment.append(text.slice(cursor));
+    }
+
+    textNode.replaceWith(fragment);
+  });
+}
+
+function refreshPreview(root) {
+  replacePreviewMarkers(root);
+  mountCards(root);
+}
+
+function schedulePreviewRefresh(component, root) {
+  if (component.redPacketPreviewRefreshPending) {
+    return;
+  }
+
+  component.redPacketPreviewRefreshPending = true;
+
+  Promise.resolve().then(() => {
+    component.redPacketPreviewRefreshPending = false;
+
+    if (component.redPacketPreviewRoot !== root || !root.isConnected) {
+      return;
+    }
+
+    refreshPreview(root);
+  });
+}
+
+function setupPreviewObserver(component) {
+  const root = component.element?.querySelector('.Split-view.Post-body');
+
+  if (!root) {
+    return;
+  }
+
+  if (component.redPacketPreviewRoot === root) {
+    schedulePreviewRefresh(component, root);
+    return;
+  }
+
+  teardownPreviewObserver(component);
+
+  component.redPacketPreviewRoot = root;
+  component.redPacketPreviewObserver = new MutationObserver(() => {
+    schedulePreviewRefresh(component, root);
+  });
+  component.redPacketPreviewObserver.observe(root, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+
+  schedulePreviewRefresh(component, root);
+}
+
+function teardownPreviewObserver(component) {
+  component.redPacketPreviewObserver?.disconnect();
+  component.redPacketPreviewObserver = null;
+  component.redPacketPreviewRoot = null;
+}
+
 function addComposerItem() {
   extend('flarum/forum/components/DiscussionComposer', 'headerItems', function (items) {
     if (!canCreateRedPacket()) {
@@ -539,6 +643,7 @@ function addComposerItem() {
 
 app.initializers.add('doingfb-red-packet', () => {
   app.store.models['doingfb-red-packets'] = RedPacket;
+  Discussion.prototype.hasRedPacket = Model.attribute('hasRedPacket');
   addComposerItem();
 
   override(ComposerState.prototype, 'clear', function (original) {
@@ -563,5 +668,31 @@ app.initializers.add('doingfb-red-packet', () => {
 
   extend(Post.prototype, 'onupdate', function () {
     mountCards(this.element);
+  });
+
+  extend('flarum/common/components/TextEditor', 'oncreate', function () {
+    setupPreviewObserver(this);
+  });
+
+  extend('flarum/common/components/TextEditor', 'onupdate', function () {
+    setupPreviewObserver(this);
+  });
+
+  extend('flarum/common/components/TextEditor', 'onremove', function () {
+    teardownPreviewObserver(this);
+  });
+
+  extend(Discussion.prototype, 'badges', function (badges) {
+    if (this.hasRedPacket?.()) {
+      badges.add(
+        'redPacket',
+        Badge.component({
+          type: 'red-packet',
+          label: app.translator.trans('doingfb-red-packet.forum.red_packet'),
+          icon: redPacketIcon,
+        }),
+        5
+      );
+    }
   });
 });
