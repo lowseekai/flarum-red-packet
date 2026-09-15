@@ -10,7 +10,6 @@ import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import Modal from 'flarum/common/components/Modal';
 import Badge from 'flarum/common/components/Badge';
 import Discussion from 'flarum/common/models/Discussion';
-import DiscussionComposer from 'flarum/forum/components/DiscussionComposer';
 import Post from 'flarum/forum/components/CommentPost';
 import ComposerState from 'flarum/forum/states/ComposerState';
 import classList from 'flarum/common/utils/classList';
@@ -696,7 +695,7 @@ app.initializers.add('doingfb-red-packet', () => {
   app.store.models['doingfb-red-packets'] = RedPacket;
   Discussion.prototype.hasRedPacket = Model.attribute('hasRedPacket');
   addComposerItem();
-  extend(DiscussionComposer.prototype, 'oninit', function () {
+  extend('flarum/forum/components/DiscussionComposer', 'oninit', function () {
     this.jumpToPreview = toggleComposerPreview;
   });
 
