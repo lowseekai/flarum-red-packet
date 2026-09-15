@@ -19,11 +19,13 @@ class RefundExpiredRedPacketsCommand extends AbstractCommand
             ->setDescription('Refund expired red packets.');
     }
 
-    protected function fire(): void
+    protected function fire(): int
     {
         $expired = $this->repository->refundExpired();
         $unpublished = $this->repository->refundStaleUnpublished();
 
         $this->info(sprintf('Refunded %d expired red packet(s), %d unpublished red packet(s).', $expired, $unpublished));
+
+        return 0;
     }
 }
