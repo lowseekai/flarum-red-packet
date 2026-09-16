@@ -467,9 +467,7 @@ class RedPacketCard extends Component {
               disabled={!canClaim || this.claiming}
               onclick={() => this.claim()}
             >
-              {canClaim
-                ? app.translator.trans('doingfb-red-packet.forum.open')
-                : this.statusText(status)}
+              {app.translator.trans('doingfb-red-packet.forum.open')}
             </Button>
           </div>
           <div className="DoingfbRedPacketCard-footer">
@@ -506,7 +504,11 @@ class RedPacketCard extends Component {
       return null;
     }
 
-    const visibleClaims = this.showAllClaims ? claims : claims.slice(0, 10);
+    const displayCount = Math.max(
+      1,
+      Math.min(100, Number(forumAttribute('redPacketClaimsDisplayCount', 10)) || 10)
+    );
+    const visibleClaims = this.showAllClaims ? claims : claims.slice(0, displayCount);
     const currentUserId = app.session.user?.id?.();
 
     return (
@@ -552,7 +554,7 @@ class RedPacketCard extends Component {
             );
           })}
         </div>
-        {claims.length > 10 ? (
+        {claims.length > displayCount ? (
           <button
             className="Button Button--link DoingfbRedPacketCard-claimsToggle"
             type="button"

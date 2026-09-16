@@ -8,6 +8,8 @@ doingfb-red-packet:
       max_amount_help: 创建红包时允许的最高积分总额。
       max_count: 单个红包最大个数
       max_count_help: 一个红包最多允许多少人领取。
+      claims_display_count: 显示领取记录条数
+      claims_display_count_help: 用户点击“查看更多”前，默认显示的领取记录数量。
       expires_minutes: 红包有效分钟数
       expires_minutes_help: 红包过期后，未领取的积分会自动退回发起人。
     permissions:

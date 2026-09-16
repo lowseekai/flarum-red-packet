@@ -35,6 +35,15 @@ app.initializers.add('doingfb-red-packet-admin', () => {
       step: 1,
     })
     .registerSetting({
+      setting: 'doingfb-red-packet.claims_display_count',
+      type: 'number',
+      label: app.translator.trans('doingfb-red-packet.admin.settings.claims_display_count'),
+      help: app.translator.trans('doingfb-red-packet.admin.settings.claims_display_count_help'),
+      min: 1,
+      max: 100,
+      step: 1,
+    })
+    .registerSetting({
       setting: 'doingfb-red-packet.expires_minutes',
       type: 'number',
       label: app.translator.trans('doingfb-red-packet.admin.settings.expires_minutes'),

@@ -32,6 +32,11 @@ class RedPacketSettings
         return max(1, min(500, (int) $this->settings->get('doingfb-red-packet.max_count', 50)));
     }
 
+    public function claimsDisplayCount(): int
+    {
+        return max(1, min(100, (int) $this->settings->get('doingfb-red-packet.claims_display_count', 10)));
+    }
+
     public function expiresMinutes(): int
     {
         return max(1, min(10080, (int) $this->settings->get('doingfb-red-packet.expires_minutes', 1440)));

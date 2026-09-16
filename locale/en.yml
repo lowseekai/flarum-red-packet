@@ -8,6 +8,8 @@ doingfb-red-packet:
       max_amount_help: Maximum total points allowed when creating a red packet.
       max_count: Maximum packet count
       max_count_help: Maximum number of users who can claim one packet.
+      claims_display_count: Visible claim records
+      claims_display_count_help: Number of claim records shown before the user clicks “View more”.
       expires_minutes: Expiration in minutes
       expires_minutes_help: Unclaimed points are automatically returned after expiration.
     permissions:

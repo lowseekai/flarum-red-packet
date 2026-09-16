@@ -355,7 +355,7 @@
   border-top: 1px solid #f7e5e5;
   display: grid;
   gap: 7px;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) 72px 110px;
   min-height: 31px;
   padding: 5px 8px;
 }
@@ -382,6 +382,11 @@
 .DoingfbRedPacketCard-claimsRow > strong,
 .DoingfbRedPacketCard-claimsRow > time {
   min-width: 0;
+}
+
+.DoingfbRedPacketCard-claimsRow > :nth-child(2),
+.DoingfbRedPacketCard-claimsRow > :nth-child(3) {
+  text-align: right;
 }
 
 .DoingfbRedPacketCard-claimUser {

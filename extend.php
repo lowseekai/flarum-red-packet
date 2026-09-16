@@ -67,6 +67,8 @@ return [
                     ->get(fn () => resolve(RedPacketSettings::class)->maxAmount()),
                 \Flarum\Api\Schema\Integer::make('redPacketMaxCount')
                     ->get(fn () => resolve(RedPacketSettings::class)->maxCount()),
+                \Flarum\Api\Schema\Integer::make('redPacketClaimsDisplayCount')
+                    ->get(fn () => resolve(RedPacketSettings::class)->claimsDisplayCount()),
                 \Flarum\Api\Schema\Str::make('redPacketCurrencyName')
                     ->get(fn () => resolve(RedPacketSettings::class)->currencyName()),
                 \Flarum\Api\Schema\Boolean::make('canCreateRedPacket')
@@ -95,5 +97,6 @@ return [
         ->default('doingfb-red-packet.min_amount', 1)
         ->default('doingfb-red-packet.max_amount', 1000)
         ->default('doingfb-red-packet.max_count', 50)
+        ->default('doingfb-red-packet.claims_display_count', 10)
         ->default('doingfb-red-packet.expires_minutes', 1440),
 ];
