@@ -19,6 +19,7 @@ doingfb-red-packet:
     claimed_title: 红包领取成功
     close: 完成
     load_failed: 红包加载失败
+    claim_failed: 红包领取失败，请稍后重试。
     user: 用户
     red_packet: 红包
     open: 開
@@ -26,6 +27,12 @@ doingfb-red-packet:
     random: 拼手气红包
     progress: 已领取 {claimed} / {total} 个，共 {amount}
     claimed_amount: 你已领取 {amount}
+    claim_records: 领取记录
+    claim_user: 领取用户
+    claim_amount: 获得积分
+    claim_time: 领取时间
+    load_more: 查看更多
+    collapse: 收起记录
     status:
       pending: 待发布
       claimed: 已领完

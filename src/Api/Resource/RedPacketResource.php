@@ -35,20 +35,25 @@ class RedPacketResource extends AbstractDatabaseResource
 
     public function scope(Builder $query, \Tobyz\JsonApiServer\Context $context): void
     {
-        $query->with(['user', 'claims']);
+        $query->with(['user', 'claims.user']);
     }
 
     public function endpoints(): array
     {
+        $includes = ['user', 'claims', 'claims.user'];
+
         return [
-            Endpoint\Show::make(),
+            Endpoint\Show::make()
+                ->defaultInclude($includes),
             Endpoint\Create::make()
                 ->authenticated()
-                ->can('doingfb-red-packet.create'),
+                ->can('doingfb-red-packet.create')
+                ->defaultInclude($includes),
             Endpoint\Endpoint::make('claim')
                 ->route('POST', '/{id}/claim')
                 ->authenticated()
                 ->can('doingfb-red-packet.claim')
+                ->defaultInclude($includes)
                 ->action(function (Context $context): RedPacket {
                     return $this->packets->claim(
                         $context->getActor(),
@@ -134,6 +139,9 @@ class RedPacketResource extends AbstractDatabaseResource
                 ->property('updated_at'),
             Schema\Relationship\ToOne::make('user')
                 ->type('users')
+                ->includable(),
+            Schema\Relationship\ToMany::make('claims')
+                ->type('doingfb-red-packet-claims')
                 ->includable(),
         ];
     }

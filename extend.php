@@ -3,6 +3,7 @@
 namespace Doingfb\RedPacket;
 
 use Doingfb\RedPacket\Api\Resource\RedPacketResource;
+use Doingfb\RedPacket\Api\Resource\RedPacketClaimResource;
 use Doingfb\RedPacket\Console\RefundExpiredRedPacketsCommand;
 use Doingfb\RedPacket\Formatter\ConfigureRedPacketFormatter;
 use Doingfb\RedPacket\Listener\PublishRedPacketsInPost;
@@ -30,6 +31,7 @@ return [
         ->configure(ConfigureRedPacketFormatter::class),
 
     new Extend\ApiResource(RedPacketResource::class),
+    new Extend\ApiResource(RedPacketClaimResource::class),
 
     (new Extend\ApiResource(DiscussionResource::class))
         ->fields(fn () => [

@@ -10,6 +10,12 @@ class RedPacketClaim extends AbstractModel
 {
     protected $table = 'red_packet_claims';
 
+    protected $fillable = [
+        'red_packet_id',
+        'user_id',
+        'amount',
+    ];
+
     protected $casts = [
         'amount' => 'integer',
         'created_at' => 'datetime',

@@ -23,7 +23,7 @@ class RedPacketRepository
     public function findOrFail(int $id): RedPacket
     {
         return RedPacket::query()
-            ->with(['user', 'claims'])
+            ->with(['user', 'claims.user'])
             ->findOrFail($id);
     }
 

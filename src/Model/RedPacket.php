@@ -31,7 +31,9 @@ class RedPacket extends AbstractModel
 
     public function claims(): HasMany
     {
-        return $this->hasMany(RedPacketClaim::class, 'red_packet_id');
+        return $this->hasMany(RedPacketClaim::class, 'red_packet_id')
+            ->orderBy('created_at')
+            ->orderBy('id');
     }
 
     public function isExpired(): bool

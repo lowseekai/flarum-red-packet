@@ -32,6 +32,17 @@ Object.assign(RedPacket.prototype, {
   actorClaimAmount: Model.attribute('actorClaimAmount'),
   canClaim: Model.attribute('canClaim'),
   user: Model.hasOne('user'),
+  claims: Model.hasMany('claims'),
+});
+
+class RedPacketClaim extends Model {}
+
+Object.assign(RedPacketClaim.prototype, {
+  redPacketId: Model.attribute('redPacketId'),
+  userId: Model.attribute('userId'),
+  amount: Model.attribute('amount'),
+  createdAt: Model.attribute('createdAt'),
+  user: Model.hasOne('user'),
 });
 
 function apiUrl(path) {
@@ -46,6 +57,29 @@ function forumAttribute(name, fallback = null) {
 
 function currencyLabel(amount) {
   return `${Number(amount || 0).toLocaleString()} ${forumAttribute('redPacketCurrencyName', '积分')}`;
+}
+
+function formatClaimTime(value) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+    .format(date)
+    .replace(/\//g, '-');
 }
 
 function translationText(key, params) {
@@ -374,6 +408,7 @@ class RedPacketCard extends Component {
 
     this.loading = true;
     this.claiming = false;
+    this.showAllClaims = false;
     this.packet = null;
     this.load();
   }
@@ -459,6 +494,79 @@ class RedPacketCard extends Component {
             ) : null}
           </div>
         </div>
+        {this.claimsView(packet)}
+      </div>
+    );
+  }
+
+  claimsView(packet) {
+    const claims = packet.claims?.() || [];
+
+    if (!claims.length) {
+      return null;
+    }
+
+    const visibleClaims = this.showAllClaims ? claims : claims.slice(0, 10);
+    const currentUserId = app.session.user?.id?.();
+
+    return (
+      <div className="DoingfbRedPacketCard-claims">
+        <div className="DoingfbRedPacketCard-claimsHeader">
+          <strong>{app.translator.trans('doingfb-red-packet.forum.claim_records')}</strong>
+          <span>{claims.length}</span>
+        </div>
+        <div className="DoingfbRedPacketCard-claimsTable">
+          <div className="DoingfbRedPacketCard-claimsRow is-header">
+            <span>{app.translator.trans('doingfb-red-packet.forum.claim_user')}</span>
+            <span>{app.translator.trans('doingfb-red-packet.forum.claim_amount')}</span>
+            <span>{app.translator.trans('doingfb-red-packet.forum.claim_time')}</span>
+          </div>
+          {visibleClaims.map((claim, index) => {
+            const user = claim.user?.();
+            const userId = claim.userId?.();
+            const createdAt = claim.createdAt?.();
+
+            return (
+              <div
+                className={`DoingfbRedPacketCard-claimsRow ${
+                  currentUserId && String(currentUserId) === String(userId) ? 'is-current' : ''
+                }`}
+                key={claim.id?.() || `${userId || 'user'}-${index}`}
+              >
+                <span className="DoingfbRedPacketCard-claimUser">
+                  {user
+                    ? user.displayName()
+                    : `${app.translator.trans('doingfb-red-packet.forum.user')} #${userId || '-'}`}
+                </span>
+                <strong className="DoingfbRedPacketCard-claimAmount">
+                  {currencyLabel(claim.amount?.())}
+                </strong>
+                <time
+                  className="DoingfbRedPacketCard-claimTime"
+                  title={formatClaimTime(createdAt)}
+                  dateTime={createdAt || undefined}
+                >
+                  {formatClaimTime(createdAt)}
+                </time>
+              </div>
+            );
+          })}
+        </div>
+        {claims.length > 10 ? (
+          <button
+            className="Button Button--link DoingfbRedPacketCard-claimsToggle"
+            type="button"
+            aria-expanded={this.showAllClaims}
+            onclick={() => {
+              this.showAllClaims = !this.showAllClaims;
+              m.redraw();
+            }}
+          >
+            {app.translator.trans(
+              `doingfb-red-packet.forum.${this.showAllClaims ? 'collapse' : 'load_more'}`
+            )}
+          </button>
+        ) : null}
       </div>
     );
   }
@@ -489,7 +597,15 @@ class RedPacketCard extends Component {
       .catch((error) => {
         this.claiming = false;
         this.onerror?.(error);
+        const detail = error?.response?.errors?.[0]?.detail;
+        const message =
+          typeof detail === 'string' && detail.trim()
+            ? detail
+            : translationText('doingfb-red-packet.forum.claim_failed');
+
+        app.alerts.show({ type: 'error' }, message);
         this.load();
+        m.redraw();
       });
   }
 }
@@ -725,6 +841,7 @@ function addComposerItem() {
 
 app.initializers.add('doingfb-red-packet', () => {
   app.store.models['doingfb-red-packets'] = RedPacket;
+  app.store.models['doingfb-red-packet-claims'] = RedPacketClaim;
   Discussion.prototype.hasRedPacket = Model.attribute('hasRedPacket');
   addComposerItem();
   extend('flarum/forum/components/DiscussionComposer', 'oninit', function () {
