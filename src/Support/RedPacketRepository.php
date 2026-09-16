@@ -69,6 +69,8 @@ class RedPacketRepository
             $packet->greeting = $greeting !== '' ? $greeting : '恭喜发财，祝你好运！';
             $packet->expires_at = Carbon::now()->addMinutes($this->settings->expiresMinutes());
             $packet->published_at = null;
+            $packet->created_at = Carbon::now();
+            $packet->updated_at = Carbon::now();
             $packet->save();
 
             try {
@@ -151,6 +153,8 @@ class RedPacketRepository
                 'red_packet_id' => (int) $packet->id,
                 'user_id' => (int) $actor->id,
                 'amount' => $amount,
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
             ]);
 
             $packet->claimed_amount = (int) $packet->claimed_amount + $amount;
