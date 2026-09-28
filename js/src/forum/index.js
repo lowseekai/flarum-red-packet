@@ -447,7 +447,7 @@ class RedPacketCard extends Component {
     const user = packet.user?.();
     const status = packet.status();
     const claimed = packet.claimedByActor();
-    const canClaim = packet.canClaim();
+    const canClaim = !this.attrs.preview && packet.canClaim();
 
     return (
       <div className={`DoingfbRedPacketCard is-${status}`}>
@@ -612,7 +612,7 @@ class RedPacketCard extends Component {
   }
 }
 
-function mountCards(root) {
+function mountCards(root, preview = false) {
   if (!root) {
     return;
   }
@@ -623,7 +623,7 @@ function mountCards(root) {
     }
 
     element.dataset.mounted = '1';
-    m.mount(element, { view: () => <RedPacketCard id={element.dataset.redPacketId} /> });
+    m.mount(element, { view: () => <RedPacketCard id={element.dataset.redPacketId} preview={preview} /> });
   });
 }
 
@@ -673,9 +673,49 @@ function replacePreviewMarkers(root) {
   });
 }
 
-function refreshPreview(root) {
+function refreshPreview(root, preview = false) {
   replacePreviewMarkers(root);
-  mountCards(root);
+  mountCards(root, preview);
+}
+
+function syncInlineEditorPreview(component) {
+  const container = component.element?.querySelector('.TextEditor-editorContainer');
+  const content = component.attrs.composer?.fields?.content?.() || component.value || '';
+  const ids = idsFromText(content);
+  const signature = ids.join(',');
+  let root = container?.querySelector('.DoingfbRedPacketEditorPreview');
+
+  if (!container?.querySelector('.TextEditor-editor')) {
+    return;
+  }
+
+  if (!ids.length) {
+    root?.remove();
+    component.redPacketInlinePreviewIds = '';
+    return;
+  }
+
+  if (!root) {
+    root = document.createElement('div');
+    root.className = 'DoingfbRedPacketEditorPreview';
+    container.append(root);
+  }
+
+  if (component.redPacketInlinePreviewIds === signature) {
+    mountCards(root, true);
+    return;
+  }
+
+  root.replaceChildren(
+    ...ids.map((id) => {
+      const mount = document.createElement('span');
+      mount.className = 'DoingfbRedPacketMount';
+      mount.dataset.redPacketId = id;
+      return mount;
+    })
+  );
+  component.redPacketInlinePreviewIds = signature;
+  mountCards(root, true);
 }
 
 function renderComposerPreview(component, root) {
@@ -686,7 +726,7 @@ function renderComposerPreview(component, root) {
     component.redPacketPreviewContent = content;
   }
 
-  refreshPreview(root);
+  refreshPreview(root, true);
 }
 
 function schedulePreviewRefresh(component, root) {
@@ -863,6 +903,7 @@ app.initializers.add('doingfb-red-packet', () => {
 
     params.inputListeners.push(() => {
       syncPending(composer, this.value);
+      syncInlineEditorPreview(this);
     });
   });
 
@@ -876,10 +917,16 @@ app.initializers.add('doingfb-red-packet', () => {
 
   extend('flarum/common/components/TextEditor', 'oncreate', function () {
     syncComposerPreview(this);
+    syncInlineEditorPreview(this);
+  });
+
+  extend('flarum/common/components/TextEditor', 'onbuild', function () {
+    syncInlineEditorPreview(this);
   });
 
   extend('flarum/common/components/TextEditor', 'onupdate', function () {
     syncComposerPreview(this);
+    syncInlineEditorPreview(this);
   });
 
   extend('flarum/common/components/TextEditor', 'onremove', function () {
