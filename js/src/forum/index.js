@@ -826,6 +826,7 @@ function syncComposerPreview(component) {
   if (isActive) {
     renderComposerPreview(component, root);
   } else {
+    root.replaceChildren();
     component.redPacketPreviewContent = null;
   }
 
