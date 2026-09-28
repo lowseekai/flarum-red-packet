@@ -444,6 +444,25 @@ class RedPacketCard extends Component {
     }
 
     const packet = this.packet;
+    if (this.attrs.compact) {
+      return (
+        <div className={`DoingfbRedPacketCard DoingfbRedPacketCard--compact is-${packet.status()}`}>
+          <div className="DoingfbRedPacketCard-compactIcon" aria-hidden="true">
+            <i className={redPacketIcon} />
+          </div>
+          <div className="DoingfbRedPacketCard-compactBody">
+            <strong>{packet.greeting()}</strong>
+            <span>
+              {currencyLabel(packet.totalAmount())} · {packet.claimedCount()} / {packet.totalCount()}
+            </span>
+          </div>
+          <span className="DoingfbRedPacketCard-compactLabel">
+            {app.translator.trans('doingfb-red-packet.forum.red_packet')}
+          </span>
+        </div>
+      );
+    }
+
     const user = packet.user?.();
     const status = packet.status();
     const claimed = packet.claimedByActor();
@@ -612,7 +631,7 @@ class RedPacketCard extends Component {
   }
 }
 
-function mountCards(root, preview = false) {
+function mountCards(root, preview = false, compact = false) {
   if (!root) {
     return;
   }
@@ -623,7 +642,9 @@ function mountCards(root, preview = false) {
     }
 
     element.dataset.mounted = '1';
-    m.mount(element, { view: () => <RedPacketCard id={element.dataset.redPacketId} preview={preview} /> });
+    m.mount(element, {
+      view: () => <RedPacketCard id={element.dataset.redPacketId} preview={preview} compact={compact} />,
+    });
   });
 }
 
@@ -702,7 +723,7 @@ function syncInlineEditorPreview(component) {
   }
 
   if (component.redPacketInlinePreviewIds === signature) {
-    mountCards(root, true);
+    mountCards(root, false, true);
     return;
   }
 
@@ -715,7 +736,7 @@ function syncInlineEditorPreview(component) {
     })
   );
   component.redPacketInlinePreviewIds = signature;
-  mountCards(root, true);
+  mountCards(root, false, true);
 }
 
 function renderComposerPreview(component, root) {
