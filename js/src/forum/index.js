@@ -700,43 +700,43 @@ function refreshPreview(root, preview = false) {
 }
 
 function syncInlineEditorPreview(component) {
-  const container = component.element?.querySelector('.TextEditor-editorContainer');
+  const contentContainer = component.element?.closest('.ComposerBody-content');
   const content = component.attrs.composer?.fields?.content?.() || component.value || '';
   const ids = idsFromText(content);
-  const signature = ids.join(',');
-  let root = container?.querySelector('.DoingfbRedPacketEditorPreview');
+  let hint = contentContainer?.querySelector('.DoingfbRedPacketComposerHint');
 
-  if (!container?.querySelector('.TextEditor-editor')) {
+  if (!contentContainer) {
     return;
   }
 
   if (!ids.length) {
-    root?.remove();
-    component.redPacketInlinePreviewIds = '';
+    hint?.remove();
     return;
   }
 
-  if (!root) {
-    root = document.createElement('div');
-    root.className = 'DoingfbRedPacketEditorPreview';
-    container.append(root);
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.className = 'ReadPermissionComposerHint DoingfbRedPacketComposerHint';
+    hint.setAttribute('role', 'status');
+
+    const icon = document.createElement('i');
+    icon.className = 'icon fas fa-circle-info';
+    icon.setAttribute('aria-hidden', 'true');
+
+    const message = document.createElement('span');
+    hint.append(icon, message);
+
+    const editor = contentContainer.querySelector('.ComposerBody-editor');
+    if (editor) {
+      contentContainer.insertBefore(hint, editor);
+    } else {
+      contentContainer.append(hint);
+    }
   }
 
-  if (component.redPacketInlinePreviewIds === signature) {
-    mountCards(root, false, true);
-    return;
-  }
-
-  root.replaceChildren(
-    ...ids.map((id) => {
-      const mount = document.createElement('span');
-      mount.className = 'DoingfbRedPacketMount';
-      mount.dataset.redPacketId = id;
-      return mount;
-    })
-  );
-  component.redPacketInlinePreviewIds = signature;
-  mountCards(root, false, true);
+  hint.querySelector('span').textContent =
+    `当前正在添加红包，编辑区显示 ${ids.map((id) => `[redpacket id=${id}]`).join('、')} 属于正常现象；点击下方预览按钮（眼睛图标）即可查看红包效果。`;
+  hint.classList.toggle('is-hidden', !!component.attrs.composer?.isSplitView);
 }
 
 function renderComposerPreview(component, root) {

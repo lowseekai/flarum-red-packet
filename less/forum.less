@@ -24,92 +24,30 @@
   }
 }
 
-.DoingfbRedPacketEditorPreview {
-  align-items: flex-end;
-  bottom: 0;
-  display: flex;
-  left: 0;
-  pointer-events: none;
-  position: absolute;
-  right: 0;
-  height: 96px;
-  overflow: hidden;
-  padding: 8px 0;
-  z-index: 2;
-}
-
-.TextEditor-editorContainer {
-  position: relative;
-}
-
-.TextEditor-editorContainer.is-split-view > .DoingfbRedPacketEditorPreview {
-  display: none;
-}
-
-.DoingfbRedPacketEditorPreview .DoingfbRedPacketCard {
-  margin: 0 auto;
-  max-width: 420px;
-  width: 100%;
-}
-
-.DoingfbRedPacketCard--compact {
+.ReadPermissionComposerHint {
   align-items: center;
-  background: var(--control-bg);
-  border: 1px solid var(--control-bg-shaded);
+  background: #fff3cd;
+  border-left: 3px solid #e0a800;
   border-radius: var(--border-radius);
-  box-shadow: none;
-  color: var(--control-color);
+  box-sizing: border-box;
+  color: #664d03;
   display: flex;
-  gap: 10px;
-  height: 78px;
-  margin: 0;
-  max-width: none;
-  min-height: 0;
-  padding: 10px 14px;
+  font-size: 13px;
+  gap: 6px;
+  padding: 7px 10px;
   width: 100%;
+
+  .icon {
+    flex: 0 0 auto;
+  }
 }
 
-.DoingfbRedPacketEditorPreview .DoingfbRedPacketCard {
-  pointer-events: none;
-}
+.DoingfbRedPacketComposerHint {
+  margin-bottom: 10px;
 
-.DoingfbRedPacketCard-compactIcon {
-  align-items: center;
-  background: #dc2626;
-  border-radius: 50%;
-  color: #fff;
-  display: flex;
-  flex: 0 0 42px;
-  height: 42px;
-  justify-content: center;
-  width: 42px;
-}
-
-.DoingfbRedPacketCard-compactBody {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.DoingfbRedPacketCard-compactBody strong,
-.DoingfbRedPacketCard-compactBody span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.DoingfbRedPacketCard-compactBody span {
-  color: var(--muted-color);
-  font-size: 12px;
-}
-
-.DoingfbRedPacketCard-compactLabel {
-  color: #dc2626;
-  flex: 0 0 auto;
-  font-size: 12px;
-  font-weight: 600;
+  &.is-hidden {
+    display: none;
+  }
 }
 
 .ComposerBody-header {
