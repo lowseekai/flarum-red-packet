@@ -776,6 +776,7 @@ function setupPreviewObserver(component) {
   }
 
   if (component.redPacketPreviewRoot === root) {
+    bindPreviewButton(component);
     schedulePreviewRefresh(component, root);
     return;
   }
