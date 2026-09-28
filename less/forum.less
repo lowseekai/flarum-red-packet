@@ -25,11 +25,21 @@
 }
 
 .DoingfbRedPacketEditorPreview {
-  border-top: 1px solid var(--control-bg);
-  flex: 0 0 auto;
+  align-items: flex-end;
+  bottom: 0;
+  display: flex;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
   height: 96px;
   overflow: hidden;
   padding: 8px 0;
+  z-index: 2;
+}
+
+.TextEditor-editorContainer {
+  position: relative;
 }
 
 .TextEditor-editorContainer.is-split-view > .DoingfbRedPacketEditorPreview {
@@ -57,6 +67,10 @@
   min-height: 0;
   padding: 10px 14px;
   width: 100%;
+}
+
+.DoingfbRedPacketEditorPreview .DoingfbRedPacketCard {
+  pointer-events: none;
 }
 
 .DoingfbRedPacketCard-compactIcon {
