@@ -832,12 +832,6 @@ function syncComposerPreview(component) {
   setupPreviewObserver(component);
 }
 
-function toggleComposerPreview(event) {
-  event?.preventDefault();
-  this.composer.isSplitView = !this.composer.isSplitView;
-  m.redraw();
-}
-
 function addComposerItem() {
   extend('flarum/forum/components/DiscussionComposer', 'headerItems', function (items) {
     if (!canCreateRedPacket()) {
@@ -875,10 +869,6 @@ app.initializers.add('doingfb-red-packet', () => {
   app.store.models['doingfb-red-packet-claims'] = RedPacketClaim;
   Discussion.prototype.hasRedPacket = Model.attribute('hasRedPacket');
   addComposerItem();
-  extend('flarum/forum/components/DiscussionComposer', 'oninit', function () {
-    this.jumpToPreview = toggleComposerPreview;
-  });
-
   override(ComposerState.prototype, 'clear', function (original) {
     const pending = this.redPacketPendingIds || [];
 
