@@ -1,6 +1,6 @@
 {
     "name": "doingfb/flarum-red-packet",
-    "version": "2.0.8",
+    "version": "2.0.9",
     "description": "Point-based red packets for Flarum 2.",
     "type": "flarum-extension",
     "license": "MIT",
